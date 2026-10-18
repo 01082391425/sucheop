@@ -257,6 +257,7 @@ function migrate(){if(S.shiftVer!==2){S.shift=JSON.parse(JSON.stringify(DEFAULT.
 let S=JSON.parse(JSON.stringify(DEFAULT));
 let tab="today", calMonth=null, selDate=todayStr(), taskFilter="open";
 let db=null, uid=null, syncState="local";
+const IS_APP=!window.claude; let grpErr="";
 let workOK=false;
 function enableWork(ok){workOK=ok;if(ok&&ensureWorkLog(todayStr()))save();if(!ok&&tab==="stock")tab="today";render();}
 let SE=[], canShift=true, userNs=null, nameMap={};
@@ -291,7 +292,7 @@ function save(){
   saveT=setTimeout(pushRemote,700);
 }
 async function pushRemote(){
-  if(!db||!uid) return;
+  if(!db||!uid||IS_APP) return;
   try{
     await db.doc("data/users/"+uid+"/desk").set({v:1,state:JSON.stringify(S),at:Date.now()});
     setSync("synced");
@@ -302,7 +303,7 @@ function syncLabel(){return {local:"이 기기에 저장",synced:"계정에 저�
 
 (async function initRemote(){
   try{
-    if(!window.claude||!window.claude.use){enableWork(!!S.stockOn);return;}
+    if(!window.claude||!window.claude.use){setTimeout(()=>{enableWork(!!S.stockOn);initGroup();},0);return;}
     const [d,u]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
     if(!d||!u){enableWork(true);return;}
     const id=await u.id(); if(!id){enableWork(true);return;}
@@ -320,6 +321,81 @@ function syncLabel(){return {local:"이 기기에 저장",synced:"계정에 저�
     }
   }catch(e){setSync(db?"error":"local");}
 })();
+
+
+/* ---------- 홈 화면 앱: 공유 코드로 함께 쓰기 (Firebase) ---------- */
+const FB_CONFIG={apiKey:"AIzaSyCxXKUyW6I4hAGYsApdOn23qu5pKJnFaZs",authDomain:"sucheop.firebaseapp.com",projectId:"sucheop",storageBucket:"sucheop.firebasestorage.app",messagingSenderId:"604215099973",appId:"1:604215099973:web:2b92623139650af2e0d92c"};
+const FB_VER="10.12.2";
+function appUid(){try{let u=localStorage.getItem("sucheop-uid");if(!u){u="u"+Math.random().toString(36).slice(2)+Date.now().toString(36);localStorage.setItem("sucheop-uid",u);}return u;}catch(e){return "u-temp";}}
+function loadScript(src){return new Promise((ok,no)=>{const sc=document.createElement("script");sc.src=src;sc.onload=ok;sc.onerror=no;document.head.appendChild(sc);});}
+function fbAdapter(fs,code){
+  const g=fs.collection("groups").doc(code);
+  const map=path=>{if(path==="shared/config")return g;const m=path.match(/^shared\/main\/events\/(.+)$/);if(m)return g.collection("events").doc(m[1]);throw new Error("bad path "+path);};
+  const wrapSnap=sn=>({exists:sn.exists,data:()=>sn.data()});
+  return {
+    doc:path=>{const r=map(path);return {get:async()=>wrapSnap(await r.get()),set:v=>r.set(v),delete:()=>r.delete(),
+      onSnapshot:(f,err)=>r.onSnapshot(sn=>f(wrapSnap(sn)),err)};},
+    collection:path=>{if(path!=="shared/main/events")throw new Error("bad path "+path);const c=g.collection("events");
+      return {add:v=>c.add(v),onSnapshot:(f,err)=>c.onSnapshot(q=>f({docs:q.docs.map(d=>({id:d.id,data:()=>d.data()}))}),err)};}
+  };
+}
+async function initGroup(){
+  const gp=S.grp||{};if(!gp.code||!FB_CONFIG)return;
+  try{const c=JSON.parse(localStorage.getItem("sucheop-se")||"[]");if(Array.isArray(c)&&!SE.length)SE=c;}catch(e){}
+  if(gp.followShift)canShift=false;
+  db={_pending:true,doc:()=>({get:async()=>({exists:false}),set:async()=>{throw 0;},delete:async()=>{throw 0;},onSnapshot:()=>()=>{}}),collection:()=>({add:async()=>{throw 0;},onSnapshot:()=>()=>{}})};
+  uid=appUid();render();
+  try{
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app-compat.js`);
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore-compat.js`);
+    if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
+    const fs=firebase.firestore();
+    try{await fs.enablePersistence({synchronizeTabs:true});}catch(e){}
+    db=fbAdapter(fs,gp.code);
+    const ref=db.doc("shared/config");
+    ref.onSnapshot(snap=>{if(!snap.exists||!(S.grp&&S.grp.followShift))return;try{const v=JSON.parse(snap.data().shift);S.shift=v.shift;S.shiftOv=v.shiftOv||{};try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}}catch(e){}render();},()=>{});
+    if(gp.shareShift)pushShift();
+    let firstSnap=true;
+    db.collection("shared/main/events").onSnapshot(q=>{
+      const before=new Set(SE.map(e=>e.id+":"+e.at));
+      SE=q.docs.map(x=>Object.assign({},x.data(),{id:x.id}));
+      try{localStorage.setItem("sucheop-se",JSON.stringify(SE));}catch(e){}
+      if(!firstSnap){const fresh=SE.filter(e=>e.by!==uid&&!before.has(e.id+":"+e.at));
+        if(fresh.length){toast(`새 함께 일정: ${fresh[0].title}${fresh.length>1?" 외 "+(fresh.length-1)+"개":""}`);}}
+      firstSnap=false;grpErr="";render();},err=>{grpErr="함께 보는 일정을 불러오지 못했어요.";render();});
+  }catch(e){grpErr="인터넷에 연결되면 함께 보는 일정이 보여요.";render();}
+}
+function newGroupCode(){const a="abcdefghjkmnpqrstuvwxyz23456789";let s="";const r=new Uint32Array(24);crypto.getRandomValues(r);r.forEach(x=>s+=a[x%a.length]);return s.match(/.{1,6}/g).join("-");}
+function groupBlock(){
+  if(!IS_APP)return "";
+  const gp=S.grp||{};
+  return `<div class="stack" style="gap:8px;border-top:1px solid var(--line);padding-top:12px">
+    <div class="label">함께 쓰기 (공유 코드)</div>
+    ${FB_CONFIG?"":`<p class="note">아직 공유 서버가 연결되지 않았어요.</p>`}
+    <p class="note">같은 코드를 넣은 사람끼리 <b>함께 보는 일정</b>이 보여요. 할 일, 기록, 일기는 공유되지 않아요. 코드를 아는 사람은 일정을 볼 수 있으니 같이 쓸 사람에게만 알려 주세요.</p>
+    <div class="row" style="gap:6px"><input id="gpCode" class="mono" style="flex:1;min-width:0" value="${esc(gp.code||"")}" placeholder="공유 코드 붙여넣기"><button type="button" class="small" id="gpNew">새 코드</button></div>
+    <label class="field"><span class="label">내 이름 (일정에 표시)</span><input id="gpNick" value="${esc(gp.nick||"")}" placeholder="예: 동언"></label>
+    <label class="row" style="gap:8px"><input type="checkbox" id="gpShare" ${gp.shareShift?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">내 근무표를 같이 보게 올리기</label>
+    <label class="row" style="gap:8px"><input type="checkbox" id="gpFollow" ${gp.followShift?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">올라온 근무표를 받아서 보기</label>
+    ${gp.code?`<button type="button" class="small ghost" id="gpCopy">코드 복사해서 보내기</button>`:""}
+  </div>`;
+}
+function bindGroupBlock(){
+  if(!IS_APP)return;
+  const nb=document.getElementById("gpNew");if(nb)nb.onclick=()=>{document.getElementById("gpCode").value=newGroupCode();};
+  const sh=document.getElementById("gpShare"),fo=document.getElementById("gpFollow");
+  if(sh&&fo){sh.onchange=()=>{if(sh.checked)fo.checked=false;};fo.onchange=()=>{if(fo.checked)sh.checked=false;};}
+  const cp=document.getElementById("gpCopy");if(cp)cp.onclick=()=>{const t=(S.grp||{}).code||"";
+    const msg=`근무 수첩 공유 코드: ${t}\n앱 → 근무 설정 → 함께 쓰기에 붙여 넣어 주세요.`;
+    if(navigator.share){navigator.share({text:msg}).catch(()=>{});}else{try{navigator.clipboard.writeText(msg).then(()=>toast("복사했어요"));}catch(e){}}};
+}
+function readGroupBlock(){
+  if(!IS_APP||!document.getElementById("gpCode"))return false;
+  const old=JSON.stringify(S.grp||{});
+  const code=document.getElementById("gpCode").value.trim().toLowerCase().replace(/\s+/g,"");
+  S.grp={code:code.length>=12?code:"",nick:document.getElementById("gpNick").value.trim(),shareShift:document.getElementById("gpShare").checked,followShift:document.getElementById("gpFollow").checked};
+  return JSON.stringify(S.grp)!==old;
+}
 
 /* ---------- shared (함께 보는 근무표·일정) ---------- */
 async function initShared(){
@@ -342,6 +418,7 @@ async function initShared(){
 }
 async function pushShift(){
   if(!db||!canShift)return;
+  if(IS_APP&&!(S.grp&&S.grp.shareShift))return;
   try{await db.doc("shared/config").set({shift:JSON.stringify({shift:S.shift,shiftOv:S.shiftOv||{}}),at:Date.now()});}catch(e){}
 }
 async function resolveNames(){
@@ -353,7 +430,7 @@ async function resolveNames(){
 function newShared(){const seen=S.seenShared||0;return SE.filter(e=>e.by&&e.by!==uid&&(e.at||0)>seen).sort((a,b)=>(b.at||0)-(a.at||0));}
 function shRow(e){
   const d=parseD(e.date);const n=diffDays(e.date,todayStr());const sh=shiftOf(e.date);
-  const who=e.by===uid?"나":(nameMap[e.by]||"함께 쓰는 사람");
+  const who=e.by===uid?"나":(nameMap[e.by]||e.byName||"함께 쓰는 사람");
   return `<div class="ev" data-act="editShared" data-id="${esc(e.id)}" style="cursor:pointer">
     <div class="date"><div class="dn">${d.getMonth()+1}/${d.getDate()}</div><div class="small muted">${WD[d.getDay()]} ${sh?`<span class="sh-${sh}">${sh}</span>`:""}</div></div>
     <div class="body"><div><span class="chip c-함께">함께</span>${e.time?`<span class="mono small muted">${esc(e.time)}</span>`:""}</div>
@@ -1374,7 +1451,7 @@ function vToday(){
   const evs=S.events.filter(e=>{const n=diffDays(e.date,t);return n>=0&&n<=7;}).sort(byEv);
   const sh=shiftOf(t);
   const shv=SE.filter(e=>{const n=diffDays(e.date,t);return n>=0&&n<=14;}).sort(byEv);
-  return head(new Date().getHours()<12?"좋은 아침이에요":"오늘도 힘내요",workOK?"근무·매매 수첩":"근무 수첩",canShift?`<button class="ghost small" data-act="settings">근무 설정</button>`:"")+
+  return head(new Date().getHours()<12?"좋은 아침이에요":"오늘도 힘내요",workOK?"근무·매매 수첩":"근무 수첩",(canShift||IS_APP)?`<button class="ghost small" data-act="settings">근무 설정</button>`:"")+
   `<div class="stack">
     ${quoteBlock()}
     <section class="panel stack" style="gap:6px">
@@ -1386,7 +1463,7 @@ function vToday(){
       <div class="row" style="justify-content:space-between"><h2>새로 들어온 일정 <span class="nbadge">${nw.length}</span></h2><button class="small primary" data-act="seenShared">확인</button></div>
       ${nw.slice(0,5).map(shRow).join("")}</section>`:"";})()}
     ${db?`<section class="panel stack" style="gap:2px">
-      <div class="row" style="justify-content:space-between"><h2>함께 보는 일정</h2><button class="small" data-act="newShared">+ 함께</button></div>
+      <div class="row" style="justify-content:space-between"><h2>함께 보는 일정</h2><button class="small" data-act="newShared">+ 함께</button></div>${grpErr?`<div class="note">${esc(grpErr)}</div>`:""}
       ${shv.length?shv.map(shRow).join(""):`<div class="empty">2주 안에 함께 볼 일정이 없어요. 여기 적은 일정은 공유한 사람도 볼 수 있어요.</div>`}
     </section>`:""}
     ${workOK?`<section class="panel stack" style="gap:2px">
@@ -1740,7 +1817,7 @@ function sharedSheet(e,presetDate){
   const showShift=()=>{const v=document.getElementById("gDate").value;document.getElementById("gShift").textContent=v?`그날 근무: ${shiftOf(v)||"-"}`:"";};
   showShift();document.getElementById("gDate").addEventListener("input",showShift);
   document.getElementById("gCancel").onclick=closeSheet;
-  const fail=()=>{document.getElementById("gErr").textContent="저장하지 못했어요. 앱을 편집 가능(참여자 이상)으로 공유받았는지 확인해 주세요.";};
+  const fail=()=>{document.getElementById("gErr").textContent=IS_APP?"저장하지 못했어요. 인터넷 연결을 확인해 주세요.":"저장하지 못했어요. 앱을 편집 가능(참여자 이상)으로 공유받았는지 확인해 주세요.";};
   const del=document.getElementById("gDel");
   if(del) del.onclick=async()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}
     try{await db.doc("shared/main/events/"+e.id).delete();closeSheet();toast("삭제했어요");}catch(err){fail();}};
@@ -1748,8 +1825,9 @@ function sharedSheet(e,presetDate){
     const v={title:document.getElementById("gTitle").value.trim(),date:document.getElementById("gDate").value,time:document.getElementById("gTime").value,memo:document.getElementById("gMemo").value.trim()};
     if(!v.title||!v.date)return;
     try{
-      if(isNew)await db.collection("shared/main/events").add(Object.assign(v,{by:uid,at:Date.now()}));
-      else await db.doc("shared/main/events/"+e.id).set(Object.assign({},v,{by:e.by||uid,at:Date.now()}));
+      const nm=IS_APP?{byName:(S.grp&&S.grp.nick)||""}:{};
+      if(isNew)await db.collection("shared/main/events").add(Object.assign(v,{by:uid,at:Date.now()},nm));
+      else await db.doc("shared/main/events/"+e.id).set(Object.assign({},v,{by:e.by||uid,byName:e.byName||"",at:Date.now()},e.by&&e.by!==uid?{}:nm));
       closeSheet();toast(isNew?"함께 보는 일정에 추가했어요":"저장했어요");
     }catch(err){fail();}};
 }
@@ -1787,6 +1865,7 @@ function settingsSheet(){
   const t=todayStr();
   sheet(`<form class="stack" id="shForm">
     <h2>근무 설정</h2>
+    ${IS_APP&&S.grp&&S.grp.followShift?`<p class="note" style="color:var(--q1)">올라온 근무표를 받아서 보는 중이에요. 조와 순서를 바꾸려면 아래 '받아서 보기'를 꺼 주세요.</p>`:""}
     <div class="field"><span class="label">내 조</span><div class="toggle">${["A","B","C","D"].map(x=>`<button type="button" data-tm="${x}" aria-pressed="${x===myTeam()}">${x}조</button>`).join("")}</div></div>
     <label class="field" id="tmWhen" hidden><span class="label">언제부터 옮기나요?</span><input id="tmDate" type="date" value="${esc(t)}"></label>
     <p class="note" id="tmNote">조를 옮기면 그날부터 근무표가 새 조 순서로 바뀌어요. 그전 날짜는 원래 조 근무로 남아요.</p>
@@ -1799,6 +1878,7 @@ function settingsSheet(){
     <div class="label">앞으로 7일</div>
     <div class="strip" id="sPrev"></div>
     ${window.claude?"":`<label class="row" style="gap:8px"><input type="checkbox" id="sStock" ${S.stockOn?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">주식 기능 쓰기 <span class="note">(주식 탭, 주식 일정, 매매 글귀, 근무 자동 기록)</span></label>`}
+    ${groupBlock()}
     <div class="row" style="gap:6px"><button type="button" class="small ghost" data-act="exportData">백업 복사</button><button type="button" class="small ghost" data-act="importOpen">백업 붙여넣기</button></div>
     <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="sCancel">취소</button><button class="primary">저장</button></div>
   </form>`);
@@ -1824,10 +1904,12 @@ function settingsSheet(){
   document.querySelectorAll("[data-tm]").forEach(b=>b.onclick=()=>{team=b.dataset.tm;document.querySelectorAll("[data-tm]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
     document.getElementById("tmWhen").hidden=team===myTeam();prev();});
   document.getElementById("tmDate").addEventListener("input",prev);
+  bindGroupBlock();
   document.getElementById("sCancel").onclick=closeSheet;
   document.getElementById("shForm").onsubmit=e=>{e.preventDefault();const p=pat();if(!p.length)return;
-    const before=myTeam();S.shift=calc();const sk=document.getElementById("sStock");if(sk&&!!S.stockOn!==sk.checked){S.stockOn=sk.checked;enableWork(sk.checked);}save();pushShift();closeSheet();render();
-    toast(team!==before?`${team}조로 옮겼어요`:"근무표를 바꿨어요");};
+    const grpCh=readGroupBlock();
+    const before=myTeam();if(!(IS_APP&&S.grp&&S.grp.followShift))S.shift=calc();const sk=document.getElementById("sStock");if(sk&&!!S.stockOn!==sk.checked){S.stockOn=sk.checked;enableWork(sk.checked);}save();pushShift();closeSheet();render();
+    if(grpCh){save();location.reload();return;}toast(team!==before?`${team}조로 옮겼어요`:"근무표를 바꿨어요");};
 }
 
 
