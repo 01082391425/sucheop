@@ -1,0 +1,2021 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1f6f5c">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="수첩"><meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>근무 수첩</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one-column phone notebook; fixed bottom tab bar with five sections; the shift strip is the signature element */
+:root{
+  --bg:#f3f4f1; --surface:#ffffff; --line:#dfe2db; --fg:#1d2420; --muted:#66706a;
+  --accent:#1f6f5c; --accent-soft:#e1efe9;
+  --q1:#c2412d; --q2:#1f6f5c; --q3:#b7791f; --q4:#7b827e;
+  --day:#d9902b; --night:#4b4fa8; --off:#8a918d; --rest:#2f8f5b;
+  --up:#d1352b; --down:#2b5fd1; --hl:#fbe78a; --hl-line:#e3c43a;
+  --f-display:"Do Hyeon","IBM Plex Sans KR",sans-serif;
+  --f-body:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141917; --surface:#1c2320; --line:#2c3531; --fg:#e7ece9; --muted:#9aa49f;
+  --accent:#5cc2a4; --accent-soft:#1f332c;
+  --q1:#f07a63; --q2:#5cc2a4; --q3:#e0ad55; --q4:#8f9792;
+  --day:#e8a94e; --night:#8d90ea; --off:#7f8783; --rest:#5cc489;
+  --up:#ff6b5f; --down:#6b97ff; --hl:#5a4d16; --hl-line:#b39a2a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141917; --surface:#1c2320; --line:#2c3531; --fg:#e7ece9; --muted:#9aa49f;
+  --accent:#5cc2a4; --accent-soft:#1f332c;
+  --q1:#f07a63; --q2:#5cc2a4; --q3:#e0ad55; --q4:#8f9792;
+  --day:#e8a94e; --night:#8d90ea; --off:#7f8783; --rest:#5cc489;
+  --up:#ff6b5f; --down:#6b97ff; --hl:#5a4d16; --hl-line:#b39a2a; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:560px;margin:0 auto;padding-block:18px calc(96px + env(safe-area-inset-bottom,0px))}
+h1,h2,h3{font-family:var(--f-display);font-weight:400;margin:0;text-wrap:balance;letter-spacing:.01em}
+h1{font-size:26px}
+h2{font-size:20px}
+h3{font-size:16px}
+.muted{color:var(--muted)}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.small{font-size:13px}
+.label{font-size:12px;color:var(--muted);letter-spacing:.06em}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:9px;padding:8px 12px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+button.ghost{background:transparent}
+button.danger{color:var(--q1)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 10px;width:100%;min-width:0}
+textarea{resize:vertical}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toggle{display:flex;gap:6px}
+.toggle button{flex:1}
+.toggle button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* Tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:4px}
+nav.tabs button{border:0;background:transparent;padding:8px 2px;font-size:13px;color:var(--muted);border-radius:8px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--accent);background:var(--accent-soft);font-weight:600}
+
+/* Shift strip */
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.sday{border-radius:9px;padding:6px 2px;text-align:center;border:1px solid var(--line);background:var(--surface)}
+.sday{font:inherit;color:var(--fg);cursor:pointer}
+.sday .d{font-size:11px;color:var(--muted)}
+.sday .s{font-family:var(--f-display);font-size:18px}
+.sday.today{border-color:var(--fg)}
+.sh-주{color:var(--day)} .sh-야{color:var(--night)} .sh-비{color:var(--off)} .sh-휴{color:var(--rest)}
+.bg-주{background:var(--day)} .bg-야{background:var(--night)} .bg-비{background:var(--off)} .bg-휴{background:var(--rest)}
+
+/* Tasks */
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.q{border-radius:12px;background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--qc);padding:10px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.q .qh{display:flex;justify-content:space-between;align-items:baseline;gap:4px}
+.q .qh h3{color:var(--qc)}
+.qadd{all:unset;box-sizing:border-box;width:100%;cursor:pointer;border-radius:8px;padding:2px 2px}
+.qadd:focus-visible{outline:2px solid var(--qc);outline-offset:2px}
+.qadd:hover h3{text-decoration:underline}
+.qplus{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:999px;border:1px solid var(--qc);color:var(--qc);font-size:15px;line-height:1}
+.q[data-q="1"]{--qc:var(--q1)} .q[data-q="2"]{--qc:var(--q2)} .q[data-q="3"]{--qc:var(--q3)} .q[data-q="4"]{--qc:var(--q4)}
+.task{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px dashed var(--line)}
+.task:first-of-type{border-top:0}
+.task input[type=checkbox]{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--accent)}
+.task .t{flex:1;min-width:0;overflow-wrap:anywhere;cursor:pointer}
+.task.done .t{text-decoration:line-through;color:var(--muted)}
+.dd{font-size:11px;font-family:var(--f-mono);padding:1px 6px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.dd.late{color:var(--q1);border-color:var(--q1)}
+.dd.soon{color:var(--q3);border-color:var(--q3)}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+
+/* Calendar */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal .wd{font-size:11px;text-align:center;color:var(--muted);padding-bottom:2px}
+.cell{aspect-ratio:1/1.15;max-width:100%;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:3px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;font:inherit;color:var(--fg)}
+.cell.other{opacity:.38}
+.cell.hasS{background:var(--hl);border-color:var(--hl-line)}
+.cell.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.cell.today .n{background:var(--fg);color:var(--bg);border-radius:999px;padding:0 5px}
+.cell .n{font-size:12px;font-family:var(--f-mono)}
+.cell .sb{font-size:10px;line-height:1;color:var(--bg);border-radius:4px;padding:2px 4px}
+.cell .sb.ov{outline:1.5px dashed var(--fg);outline-offset:1px}
+.cell .hn{font-size:9px;line-height:1.1;color:var(--up);max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cell .dots{display:flex;gap:2px;margin-top:auto}
+.dot{width:6px;height:6px;border-radius:50%}
+.newbox{border-color:var(--rest);box-shadow:inset 0 0 0 1px var(--rest)}
+.nbadge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--rest);color:var(--bg);font-family:var(--f-body);font-size:12px;font-weight:600;vertical-align:middle}
+.tabs .tdot{position:absolute;top:4px;right:calc(50% - 16px);width:8px;height:8px;border-radius:50%;background:var(--rest)}
+nav.tabs button{position:relative}
+.dot.t{background:var(--q1)} .dot.k{background:var(--down)} .dot.s{background:var(--rest)}
+.chip.c-함께{background:color-mix(in srgb,var(--rest) 16%,transparent);color:var(--rest)}
+.sun{color:var(--up)} .sat{color:var(--down)}
+
+/* Stock events */
+.ev{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:flex-start}
+.ev:first-child{border-top:0}
+.ev .date{width:58px;flex:none;text-align:center}
+.ev .date .dn{font-family:var(--f-display);font-size:20px;line-height:1}
+.ev .body{flex:1;min-width:0;overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-right:4px}
+.chip.c-실적{background:color-mix(in srgb,var(--up) 14%,transparent);color:var(--up)}
+.chip.c-FOMC,.chip.c-경제지표{background:color-mix(in srgb,var(--down) 14%,transparent);color:var(--down)}
+.chip.c-배당{background:color-mix(in srgb,var(--rest) 16%,transparent);color:var(--rest)}
+
+/* Fib */
+.ladder{width:100%;border-collapse:collapse}
+.ladder td{padding:8px 4px;border-top:1px solid var(--line)}
+.ladder td:last-child{text-align:right}
+.ladder tr.buy td:first-child{color:var(--down)}
+.ladder tr.stop td{color:var(--q1)}
+.ladder tr.tp td{color:var(--up);font-weight:600}
+.ladder tr.edge td{color:var(--muted)}
+.big{font-family:var(--f-mono);font-size:17px;font-variant-numeric:tabular-nums}
+.note{font-size:12px;color:var(--muted)}
+
+
+/* quote, now, log */
+.quote{padding:14px 16px;border-radius:12px;background:var(--accent-soft);display:flex;flex-direction:column;gap:4px;position:relative}
+.quote p{margin:0;font-family:var(--f-display);font-size:19px;line-height:1.45;text-wrap:balance;padding-right:64px}
+.qnav{display:flex;align-items:center;gap:4px}
+.qt{font-family:var(--f-display);font-size:22px;line-height:1.3;color:var(--accent)}
+.quote p{padding-right:0}
+.qmine{white-space:pre-wrap}
+.qq{display:flex;gap:8px;align-items:flex-start;font-weight:600;padding-top:6px;border-top:1px dashed color-mix(in srgb,var(--accent) 35%,transparent)}
+.qbadge{flex:none;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--fg);color:var(--bg);font-family:var(--f-mono);font-size:12px}
+.qans{margin:0;white-space:pre-wrap;font-family:var(--f-body)!important;font-size:14px!important;line-height:1.6;padding:8px 10px;border-radius:8px;background:var(--surface)}
+.qgist{color:var(--muted);font-family:var(--f-body)!important;font-size:13px!important}
+.quote.empty-q p{font-family:var(--f-body);font-size:14px}
+.nowchip{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border-color:var(--cc,var(--line));background:color-mix(in srgb,var(--cc,var(--line)) 10%,var(--surface))}
+.nowchip .cdot{background:var(--cc)}
+.nowchip.idle{background:var(--surface);color:var(--muted)}
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none;vertical-align:middle;margin-right:4px}
+.catgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.catbtn{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px;border-radius:10px;min-height:64px;text-align:left}
+.catbtn .cdot{background:var(--cc)}
+.catbtn .cname{font-weight:600}
+.catbtn .ctime{font-size:12px;color:var(--muted)}
+.catbtn.on{border-color:var(--cc);background:color-mix(in srgb,var(--cc) 16%,var(--surface));box-shadow:inset 0 0 0 1px var(--cc)}
+.catbtn.on .ctime{color:var(--fg)}
+@media (prefers-reduced-motion:no-preference){.catbtn.on .cdot{animation:pulse 1.6s ease-in-out infinite}@keyframes pulse{50%{opacity:.35}}}
+.sbar{display:flex;height:16px;border-radius:6px;overflow:hidden;background:var(--line);gap:2px}
+.sbar span{min-width:3px}
+.empty-bar{opacity:.5}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px}
+.legend b{font-weight:500}
+.startbtn{width:100%;border-color:var(--accent);color:var(--accent);font-weight:600}
+.lgbtn{padding:5px 10px;border-radius:999px;font-size:13px;display:inline-flex;align-items:center;gap:2px}
+.lrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px dashed var(--line)}
+.lrow:first-child{border-top:0}
+.mood button{display:flex;flex-direction:column;align-items:center;gap:0;padding:6px 2px;font-size:12px}
+.mood button b{font-size:16px}
+.exbtn{width:100%;text-align:left}
+.exbtn[aria-pressed="true"]{border-color:var(--rest);color:var(--rest);background:color-mix(in srgb,var(--rest) 12%,var(--surface));font-weight:600}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tile .tv{font-family:var(--f-display);font-size:24px;line-height:1.2}
+.dup{color:var(--rest)} .ddown{color:var(--q1)} .dz{color:var(--muted)}
+.cmp{display:flex;flex-direction:column;gap:3px}
+.cmp-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.cbar{height:9px;border-radius:5px;background:color-mix(in srgb,var(--line) 60%,transparent);overflow:hidden}
+.cbar span{display:block;height:100%;border-radius:5px}
+.cbar.last{height:5px}.cbar.last span{opacity:.4}
+.wgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wday{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border-radius:9px;min-width:0}
+.wday.today{border-color:var(--fg)}
+.minibar{display:flex;flex-direction:column-reverse;width:12px;height:44px;border-radius:4px;overflow:hidden;background:var(--line)}
+.minibar i{display:block;min-height:2px}
+.exy{color:var(--rest);font-weight:600}
+button:disabled{opacity:.35;cursor:default}
+
+/* teams */
+.teams{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.team{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:10px;border:1px solid var(--line)}
+.team.mine{border-color:var(--accent);background:var(--accent-soft)}
+.tchip{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;color:var(--bg);font-family:var(--f-display);font-size:16px}
+
+/* projects */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+@media (max-width:420px){.pgrid{grid-template-columns:1fr}}
+.pcol{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.proj{border-top:1px dashed var(--line);padding-top:8px;display:flex;flex-direction:column;gap:4px}
+.ptitle{all:unset;cursor:pointer;font-weight:600;overflow-wrap:anywhere}
+.ptitle:focus-visible{outline:2px solid var(--accent)}
+.pdone .ptitle{text-decoration:line-through;color:var(--muted)}
+.pbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.pbar i{display:block;height:100%;background:var(--accent)}
+.psteps .task{padding:3px 0;font-size:13px}
+/* morning card */
+.morning{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 16px;display:flex;flex-direction:column;gap:12px}
+.m-date{display:flex;align-items:flex-end;gap:12px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.m-day{font-family:"Gowun Batang",var(--f-display);font-weight:700;font-size:54px;line-height:.9}
+.m-meta{font-size:13px;color:var(--muted);flex:1}
+.m-nav{display:flex;gap:2px}
+.m-title{font-family:"Gowun Batang",var(--f-display);font-weight:700;font-size:25px;line-height:1.3;margin:0}
+.m-gist{margin:0;font-size:16px;line-height:1.75}
+.m-res{display:flex;flex-direction:column;gap:4px;padding:12px;border-radius:12px;background:var(--accent-soft)}
+.m-res input{background:var(--surface);font-size:16px;font-weight:600;border-color:transparent}
+/* Sheet (editor) */
+.sheet-back{position:fixed;inset:0;background:color-mix(in srgb,var(--fg) 40%,transparent);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:16px 16px 0 0;max-height:88%;overflow:auto;
+  padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.status{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px;z-index:50}
+@media (prefers-reduced-motion:no-preference){.sheet{animation:up .18s ease-out}@keyframes up{from{transform:translateY(24px);opacity:.6}}}
+</style>
+
+<div class="wrap" id="app"></div>
+
+<nav class="tabs" aria-label="메뉴"><div class="in" id="tabs"></div></nav>
+
+<script>
+(function(){
+"use strict";
+/* ---------- state ---------- */
+const LS="dongeon-desk-v1";
+const DEFAULT={
+  tasks:[],
+  events:[],
+  fibs:[],
+  shift:{pattern:["야","야","휴","휴","주","주","휴","휴"],refDate:"2026-10-18",refIndex:0},
+  shiftVer:2,
+  shiftOv:{},
+  logs:[],days:{},projects:[],recur:[],quotes:[],rchk:{},
+  routines:{"주":["출근 전 인수인계 확인"],"야":["출근 전 낮잠"],"휴":["가벼운 러닝"]}
+};
+function migrate(){if(S.shiftVer!==2){S.shift=JSON.parse(JSON.stringify(DEFAULT.shift));S.shiftVer=2;return true;}return false;}
+let S=JSON.parse(JSON.stringify(DEFAULT));
+let tab="today", calMonth=null, selDate=todayStr(), taskFilter="open";
+let db=null, uid=null, syncState="local";
+let workOK=false;
+function enableWork(ok){workOK=ok;if(ok&&ensureWorkLog(todayStr()))save();if(!ok&&tab==="stock")tab="today";render();}
+let SE=[], canShift=true, userNs=null, nameMap={};
+const fibForm={L:"",H:"",preset:"basic",filled:[false,false,false]};
+
+try{const raw=localStorage.getItem(LS); if(raw){Object.assign(S,JSON.parse(raw));}}catch(e){}
+if(migrate()){try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}}
+
+function todayStr(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function parseD(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);}
+function addDays(s,n){const d=parseD(s);d.setDate(d.getDate()+n);return todayStr(d);}
+function diffDays(a,b){return Math.round((parseD(a)-parseD(b))/864e5);}
+function uidGen(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+const WD=["일","월","화","수","목","금","토"];
+/* 대한민국 공휴일·대체공휴일 2026~2027 */
+const HOLI={
+"2026-01-01":"신정","2026-02-16":"설날 연휴","2026-02-17":"설날","2026-02-18":"설날 연휴","2026-03-01":"삼일절","2026-03-02":"대체공휴일",
+"2026-05-01":"노동절","2026-05-05":"어린이날","2026-05-24":"부처님오신날","2026-05-25":"대체공휴일","2026-06-03":"지방선거","2026-06-06":"현충일",
+"2026-07-17":"제헌절","2026-08-15":"광복절","2026-08-17":"대체공휴일","2026-09-24":"추석 연휴","2026-09-25":"추석","2026-09-26":"추석 연휴",
+"2026-10-03":"개천절","2026-10-05":"대체공휴일","2026-10-09":"한글날","2026-12-25":"성탄절",
+"2027-01-01":"신정","2027-02-06":"설날 연휴","2027-02-07":"설날","2027-02-08":"설날 연휴","2027-02-09":"대체공휴일","2027-03-01":"삼일절",
+"2027-05-01":"노동절","2027-05-03":"대체공휴일","2027-05-05":"어린이날","2027-05-13":"부처님오신날","2027-06-06":"현충일","2027-07-17":"제헌절","2027-07-19":"대체공휴일",
+"2027-08-15":"광복절","2027-08-16":"대체공휴일","2027-09-14":"추석 연휴","2027-09-15":"추석","2027-09-16":"추석 연휴","2027-10-03":"개천절","2027-10-04":"대체공휴일",
+"2027-10-09":"한글날","2027-10-11":"대체공휴일","2027-12-25":"성탄절","2027-12-27":"대체공휴일"};
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+/* ---------- persistence ---------- */
+let saveT=null;
+function save(){
+  try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}
+  clearTimeout(saveT);
+  saveT=setTimeout(pushRemote,700);
+}
+async function pushRemote(){
+  if(!db||!uid) return;
+  try{
+    await db.doc("data/users/"+uid+"/desk").set({v:1,state:JSON.stringify(S),at:Date.now()});
+    setSync("synced");
+  }catch(e){setSync("error");}
+}
+function setSync(s){syncState=s;const el=document.getElementById("sync");if(el)el.textContent=syncLabel();}
+function syncLabel(){return {local:"이 기기에 저장",synced:"계정에 저장됨",error:"계정 저장 실패 · 이 기기에는 저장됨",loading:"불러오는 중"}[syncState];}
+
+(async function initRemote(){
+  try{
+    if(!window.claude||!window.claude.use){enableWork(!!S.stockOn);return;}
+    const [d,u]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
+    if(!d||!u){enableWork(true);return;}
+    const id=await u.id(); if(!id){enableWork(true);return;}
+    db=d; uid=id; setSync("loading");
+    initShared();
+    const snap=await db.doc("data/users/"+uid+"/desk").get();
+    if(snap.exists){
+      const data=snap.data();
+      let mig=false;
+      try{const st=JSON.parse(data.state);S=Object.assign(JSON.parse(JSON.stringify(DEFAULT)),st);mig=migrate();if(fixNightStart())mig=true;if(workOK&&ensureWorkLog(todayStr()))mig=true;
+        try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}}catch(e){}
+      genRecurring(); setSync("synced"); render(); if(mig) pushRemote();
+    }else{
+      await pushRemote();
+    }
+  }catch(e){setSync(db?"error":"local");}
+})();
+
+/* ---------- shared (함께 보는 근무표·일정) ---------- */
+async function initShared(){
+  try{
+    userNs=await window.claude.use("user");
+    const owner=userNs?await userNs.isOwner():false;
+    canShift=owner;enableWork(owner);
+    const ref=db.doc("shared/config");
+    if(owner){const s=await ref.get();if(!s.exists)await pushShift();}
+    ref.onSnapshot(snap=>{if(!snap.exists)return;try{const v=JSON.parse(snap.data().shift);S.shift=v.shift;S.shiftOv=v.shiftOv||{};}catch(e){}render();},()=>{});
+    let firstSnap=true;
+    db.collection("shared/main/events").onSnapshot(q=>{
+      const before=new Set(SE.map(e=>e.id+":"+e.at));
+      SE=q.docs.map(x=>Object.assign({},x.data(),{id:x.id}));
+      if(!firstSnap){const fresh=SE.filter(e=>e.by!==uid&&!before.has(e.id+":"+e.at));
+        if(fresh.length){toast(`새 함께 일정: ${fresh[0].title}${fresh.length>1?" 외 "+(fresh.length-1)+"개":""}`);}}
+      firstSnap=false;render();resolveNames();},()=>{});
+    render();
+  }catch(e){}
+}
+async function pushShift(){
+  if(!db||!canShift)return;
+  try{await db.doc("shared/config").set({shift:JSON.stringify({shift:S.shift,shiftOv:S.shiftOv||{}}),at:Date.now()});}catch(e){}
+}
+async function resolveNames(){
+  if(!userNs||!userNs.profiles)return;
+  const ids=[...new Set(SE.map(e=>e.by).filter(Boolean))];if(!ids.length)return;
+  try{const ps=await userNs.profiles(ids);let ch=false;
+    ids.forEach(i=>{const n=(ps[i]&&ps[i].name)||"";if(nameMap[i]!==n){nameMap[i]=n;ch=true;}});if(ch)render();}catch(e){}
+}
+function newShared(){const seen=S.seenShared||0;return SE.filter(e=>e.by&&e.by!==uid&&(e.at||0)>seen).sort((a,b)=>(b.at||0)-(a.at||0));}
+function shRow(e){
+  const d=parseD(e.date);const n=diffDays(e.date,todayStr());const sh=shiftOf(e.date);
+  const who=e.by===uid?"나":(nameMap[e.by]||"함께 쓰는 사람");
+  return `<div class="ev" data-act="editShared" data-id="${esc(e.id)}" style="cursor:pointer">
+    <div class="date"><div class="dn">${d.getMonth()+1}/${d.getDate()}</div><div class="small muted">${WD[d.getDay()]} ${sh?`<span class="sh-${sh}">${sh}</span>`:""}</div></div>
+    <div class="body"><div><span class="chip c-함께">함께</span>${e.time?`<span class="mono small muted">${esc(e.time)}</span>`:""}</div>
+      <div style="font-weight:600">${esc(e.title)}</div>
+      ${e.memo?`<div class="small muted">${esc(e.memo)}</div>`:""}
+      <div class="small muted">${esc(who)}</div></div>
+    <div class="small mono muted">${n===0?"오늘":n>0?"D-"+n:""}</div></div>`;
+}
+
+/* ---------- shift ---------- */
+/* 4조 2교대: 같은 순환을 조마다 며칠씩 밀어서 씀. refIndex는 C조 기준 */
+const TEAMS={off:{C:0,A:2,B:4,D:6}};
+function teamMoves(){const m=(S.shift&&S.shift.teams)||[];return m.length?m:[{from:"",team:"C"}];}
+function teamAt(ds){let t="C";teamMoves().forEach(x=>{if(!x.from||x.from<=ds)t=x.team;});return t;}
+function myTeam(){return teamAt(todayStr());}
+function canon(ds,off){const p=S.shift.pattern;if(!p.length)return "";const n=diffDays(ds,S.shift.refDate)-off;return p[(((S.shift.refIndex+n)%p.length)+p.length)%p.length];}
+function baseShift(dateStr){return canon(dateStr,TEAMS.off[teamAt(dateStr)]||0);}
+function isOv(dateStr){return !!(S.shiftOv&&S.shiftOv[dateStr]);}
+function teamShift(t,ds){if(t===teamAt(ds))return shiftOf(ds);return canon(ds,TEAMS.off[t]);}
+function teamRow(ds){const me=teamAt(ds);return `<div class="teams">${["A","B","C","D"].map(t=>{const s=teamShift(t,ds);return `<div class="team ${t===me?"mine":""}"><span class="label">${t}조${t===me&&canShift?" · 나":""}</span><span class="tchip bg-${s}">${s||"-"}</span></div>`;}).join("")}</div>`;}
+function shiftOf(dateStr){
+  if(isOv(dateStr)) return S.shiftOv[dateStr];
+  return baseShift(dateStr);
+}
+
+/* ---------- tasks ---------- */
+function quad(t){return t.imp&&t.urg?1:t.imp?2:t.urg?3:4;}
+const QN={1:["지금 하기","중요·긴급"],2:["계획하기","중요·여유"],3:["맡기기","긴급·덜 중요"],4:["버리기","둘 다 아님"]};
+function ddBadge(t){
+  if(!t.due) return "";
+  const n=diffDays(t.due,todayStr());
+  const cls=t.done?"":n<0?"late":n<=2?"soon":"";
+  const txt=n===0?"D-DAY":n>0?"D-"+n:"D+"+(-n);
+  return `<span class="dd ${cls}">${txt}</span>`;
+}
+function taskRow(t){
+  const sh=t.due?shiftOf(t.due):"";
+  return `<div class="task ${t.done?"done":""}">
+    <input type="checkbox" aria-label="완료" data-act="toggle" data-id="${t.id}" ${t.done?"checked":""}>
+    <div class="t" data-act="editTask" data-id="${t.id}">${esc(t.title)}
+      <div class="row small" style="gap:6px;margin-top:2px">${ddBadge(t)}${t.due?`<span class="muted mono">${t.due.slice(5).replace("-","/")}</span>`:""}${sh?`<span class="sh-${sh} small">${sh}</span>`:""}</div>
+    </div></div>`;
+}
+
+/* ---------- fib ---------- */
+function tick(p){return p<2000?1:p<5000?5:p<20000?10:p<50000?50:p<200000?100:p<500000?500:1000;}
+function ceilTick(p){if(!isFinite(p)||p<=0)return 0;let t=tick(p);let v=Math.ceil(p/t-1e-9)*t;const t2=tick(v);if(t2!==t)v=Math.ceil(v/t2-1e-9)*t2;return v;}
+const PRESETS={
+  basic:{name:"기본 3분할",buys:[0.382,0.5,0.618],stop:0.786},
+  deep:{name:"깊은 구간 (폭 100%↑)",buys:[0.5,0.618],stop:0.7}
+};
+function fibCalc(L,H,preset,filled){
+  const P=PRESETS[preset]; const R=H-L;
+  const buys=P.buys.map(r=>({r,price:ceilTick(H-R*r)}));
+  const stop={r:P.stop,price:ceilTick(H-R*P.stop)};
+  const got=buys.filter((b,i)=>filled[i]);
+  let avg=0,tp=0;
+  if(got.length){avg=got.length/got.reduce((s,b)=>s+1/b.price,0);tp=ceilTick(avg*1.04);}
+  return {buys,stop,avg,tp,rangePct:(H/L-1)*100};
+}
+const fmt=n=>Math.round(n).toLocaleString("ko-KR");
+
+/* ---------- day log · routine · recurring · quote ---------- */
+const BASE_CATS=[["업무","var(--night)"],["주식","var(--up)"],["가족","var(--rest)"],["독서","var(--day)"],["휴식","var(--off)"]];
+const CUSTOM_COLORS=["#8b5cf6","#0ea5e9","#ec4899","#14b8a6","#f97316","#84cc16","#a16207","#6366f1"];
+function cats(){return BASE_CATS.concat((S.customCats||[]).map((c,i)=>[c,CUSTOM_COLORS[i%CUSTOM_COLORS.length]]));}
+const catColor=c=>(cats().find(x=>x[0]===c)||[0,"var(--muted)"])[1];
+const MOODS=["힘듦","별로","보통","좋음","최고"];
+/* 날짜별 문장: 제목은 탁상 달력, 요지는 Claude가 쓴 한 줄 정리 */
+const DAILY={
+"01-01":["한 해의 시작","좋은 한 해는 잘 보낸 하루들이 모인 것이고, 그 하루의 시작은 오늘 아침이다."],
+"01-02":["하루의 시작","오늘이 마지막 날이라면 어제와 똑같이 보낼까. 후회 없는 하루를 만들자."],
+"01-03":["어제와 오늘","일찍 일어나려면 일찍 자야 한다. 오늘의 시작은 어젯밤에 정해진다."],
+"01-04":["나의 10년","가장 값진 시간은 나이를 가리지 않는다. 시간의 가치를 생각하며 오늘을 산다."],
+"01-05":["가벼운 목표","동기는 시작을 만들고, 작고 잴 수 있는 목표는 계속하게 만든다."],
+"01-06":["준비","준비된 사람에게는 늘 쓰는 휴대폰 앱에서도 투자 아이디어가 보인다."],
+"01-07":["타깃 목표 지점","준비가 덜 됐어도 시작할 수 있다. 다만 어디를 향하는지는 분명해야 한다."],
+"01-08":["지피지기","상대도 나도 모른 채 덤비면 무모할 뿐이다. 내 수준부터 알고 나아가자."],
+"01-09":["인생 초년생","누구나 인생은 처음이다. 처음이라도 시작은 해야 한다."],
+"01-10":["성공의 시작","큰 성공도 작은 시작에서 나온다. 기적을 기다리지 말고 작은 일부터."],
+"01-11":["지금 이 순간","노력할 때가 바로 지금이라는 걸 깨달아야 다음 단계가 열린다."],
+"01-12":["준비된 투자","월급만으로는 부족한 시대. 준비된 투자로 다른 소득원을 만들어 두자."],
+"01-13":["기회","시험을 견디면 기회가 된다. 꾸준히 공부해 두어야 기회가 왔을 때 잡는다."],
+"01-14":["해본 적 없는 일","가져본 적 없는 것을 얻으려면 해본 적 없는 일을 해 봐야 한다."],
+"01-15":["최상위 경험","경험이 실력을 만든다. 그중에서도 가장 높은 수준의 경험을 찾아가자."],
+"01-16":["첫 경험","모든 순간이 처음이다. 처음이 서툰 건 당연하다."],
+"01-17":["새로운 결심","결심보다 행동. 어제와 다른 시간, 사람, 장소를 오늘 직접 골라 보자."],
+"01-18":["3단계","남에게 배우는 단계, 함께 일하는 단계를 지나 스스로 즐기는 단계로 간다."],
+"01-19":["용기","인생이라는 여행에서 가장 필요한 건 낯선 곳에 첫발을 내딛는 용기다."],
+"01-20":["첫걸음","겪어보지 못한 결과는 언제나 첫걸음에서 시작된다."],
+"01-21":["결정하는 용기","어려운 결정은 피할 수 없다. 결과가 어떻든 결정을 내리는 용기가 먼저다."],
+"01-22":["잘 하고 있다","힘든 순간에도 나는 잘 해내고 있다는 걸 잊지 말자."],
+"01-23":["한 걸음","새로 시작하는 건 늘 어렵지만, 한 걸음만이라도 내딛는 게 중요하다."],
+"01-24":["씨앗","아는 것과 겪은 것은 행동해야 싹이 트고 꽃이 핀다. 움직이지 않으면 땅속 씨앗일 뿐이다."],
+"01-25":["자기 확신","나를 못 믿겠는 건 잠깐의 불안일 뿐, 필요한 도구는 이미 다 갖고 있다."],
+"01-26":["시작의 신호","최선을 다했는데 결과가 실망스럽다면, 다시 시작하라는 신호로 받아들이자."],
+"01-27":["나이가 들어도","나이 들면 기억력은 줄어도 경험으로 쌓은 지식은 늘어난다. 계속 배우고 시작한다면."],
+"01-28":["끝이 아닌 시작","힘든 때일수록 내 강점을 믿자. 어려운 상황은 끝이 아니라 배우고 적응할 기회다."],
+"01-29":["거대한 목표","한 번뿐인 인생, 닿기 힘들 만큼 큰 목표를 품고 일단 해 보자."],
+"01-30":["성장의 자양분","일단 해 본 일은 결과와 상관없이 성장의 거름이 된다. 헛된 시도는 없다."],
+"01-31":["내일의 해","매일 이길 수는 없다. 지는 날은 담담히 넘기자. 내일은 또 해가 뜬다."],
+"02-01":["안 될 이유","안 될 이유는 늘 많다. 해낸 사람들은 이유가 없어서가 아니라 그래도 해낸 것이다."],
+"02-02":["후회","가장 큰 후회는 망설이다 시도조차 하지 않은 것이다."],
+"02-03":["포유류의 뇌","불안하고 조급하면 익숙한 선택만 하게 된다. 두려움에 끌려가지 않도록 판단을 훈련하자."],
+"02-04":["한 템포 쉬기","마음이 급할수록 바로 누르지 말고 숨을 한 번 고르자. 멈춘 10초가 두려움 대신 원칙으로 판단하게 해 준다. (Claude가 쓴 날)"],
+"02-05":["긍정의 힘","낯선 분야에 도전해야 한다면 긍정적인 태도가 가장 큰 무기다."],
+"02-06":["두려움","고점이라는 생각에 갇히면 안 오를 이유만 보인다. 두려움은 피하지 말고 마주해야 줄어든다."],
+"02-07":["죽어라 공부하면","공부하면 될까를 묻기 전에, 정말 그만큼 했는데도 안 되는지부터 물어보자."],
+"02-08":["정신병","남들만큼 놀면서 노력한 사람만큼 벌기를 바라는 건 욕심이다. 노력 없이 결과는 없다."],
+"02-09":["도전의 과정","실수와 실패는 내 탓이라기보다 과정이다. 다음 도전의 연료로 쓰자."],
+"02-10":["질문보다 실행","어떻게 잘하냐고 묻기 전에 일단 해야 한다. 공부를 해야 어디든 갈 수 있다."],
+"02-11":["시험 범위","중요한 것에 힘을 쏟자. 범위 밖의 공부는 열심히 해도 남는 게 없다."],
+"02-12":["납득할 만한 노력","스스로 인정할 만큼 노력했다면 손절한 날에도 흔들리지 않고 다시 공부할 수 있다."],
+"02-13":["설렘과 두려움","설렘은 앞으로 밀어주고 두려움은 리스크를 챙기게 한다. 둘의 균형을 잡자."],
+"02-14":["소원","인생의 끝에서 돌아오고 싶을 오늘이 바로 지금이다. 그때 하고 싶을 일을 지금 시작하자."],
+"02-15":["도전","자신 있게 도전하는 사람은 없다. 누구나 두렵지만, 그걸 넘어야 시작할 수 있다."],
+"02-16":["어려운 난이도","몰입은 쉬운 일에서 생기지 않는다. 어려운 과제와 그걸 다룰 실력이 만날 때 생긴다."],
+"02-17":["몰입","너무 쉽다면 성장이 멈춘 것이고, 불안하다면 제대로 어려운 일을 하고 있다는 뜻이다."],
+"02-18":["집중","일할 때는 일에만. 조급함을 다스리고 지금 자리에 집중하는 것이 판단력을 키운다."],
+"02-19":["변명","해낸 사람들은 안 되는 이유 대부분이 변명이라는 걸 알고 있다."],
+"02-20":["타이밍","망설여지는 그 순간이 바로 뛰어들 때다. 포기하면 그때부터 못 하는 일이 된다."],
+"02-21":["할 수 있다","꼭 가야 할 길이라면 의심은 내려놓고 할 수 있다고 믿자."],
+"02-22":["행동","책과 남의 경험으로 배운 것도 직접 해 보기 전에는 반쪽짜리 지식이다."],
+"02-23":["어려움","힘든 건 크고 있다는 증거다. 이겨내면 그만큼 자란다."],
+"02-24":["오늘의 한 줄","대단한 성과가 아니어도 괜찮다. 오늘 해낸 것 한 줄을 적어 두면, 그게 내일의 한 발짝이 된다. (Claude가 쓴 날)"],
+"02-25":["한 발짝","두려움을 넘어 한 발짝 더 가는 것, 도전은 그것만으로 충분하다."],
+"02-26":["인생의 원천","도전하는 동안 새 가능성과 처음 보는 결과를 만난다. 삶을 풍성하게 하는 힘이다."],
+"02-27":["좋은 날","지금의 어려움은 도전의 한 구간일 뿐. 지나고 나면 좋은 날이 온다."],
+"02-28":["신호","실망스러운 결과는 실패가 아니라 더 배우고 더 파고들라는 신호다."],
+"03-01":["사람을 보는 눈","혼자 잘해서 갈 수 있는 거리는 정해져 있다. 누구와 함께 가느냐가 얼마나 멀리 가느냐를 정한다. (Claude가 쓴 날)"],
+"03-02":["함께","열린 마음으로 생각을 나누고, 남의 성공을 축하하고, 배우려는 자세를 잃지 말자."],
+"03-03":["바른 인간관계","모두에게 좋은 사람일 수는 없다. 나를 알아주는 사람과의 오래 갈 인연에 힘을 쏟자."],
+"03-04":["거대한 부자","가장 가까운 사람이 잘되도록 돕자. 그 사람이 다시 나를 끌어올린다."],
+"03-05":["최부자집 마인드","가진 것을 주변과 나눌 줄 아는 마음이 진짜 부자의 그릇이다."],
+"03-06":["주변 사람","주변에 어떤 사람들이 있느냐가 나를 보여준다. 나는 누군가에게 어떤 주변 사람일까."],
+"03-07":["가장 친한 사람","가장 가까운 몇 사람을 보면 그 사람의 현재가 보인다."],
+"03-08":["성장해서 만나는 사람","성장하면 관계가 자연스럽게 정리되고, 더 나은 자리에서 다른 사람들을 만난다."],
+"03-09":["발전","앞서 가면 뒤에서 끌어내리려는 말이 나온다. 그 말에 흔들리지 말고 계속 가자."],
+"03-10":["옆에 있는 사람","마지막 순간에 떠오를 사람을 지금 더 아끼자. 후회는 미루는 데서 생긴다."],
+"03-11":["가화만사성","투자도 결국 멘탈이고, 멘탈의 바탕은 편안한 가정이다. 쉬는 날엔 가족에게 집중하자."],
+"03-12":["아이의 자신감","모르는 걸 알게 되면 자신감이 줄어드는 게 당연하다. 천천히 알려주면 다시 차오른다."],
+"03-13":["자신의 플레이","남에게 보여주는 매매 말고 내 자산을 늘리는 매매를 하자. 손절도 내 플레이의 일부다."],
+"03-14":["타산지석","내 길과 상관없어 보이는 사람에게서도 배울 점은 있다."],
+"03-15":["위험한 때","진심 어린 충고가 잔소리로 들리기 시작했다면, 그때가 제일 조심해야 할 때다."],
+"03-16":["의심","함께 가기로 한 사람은 온전히 믿자. 의심이 깔린 관계로는 큰일을 함께할 수 없다."],
+"03-17":["가스라이팅","진짜 조언은 나를 위한 말이고, 조종하는 말에는 상대의 이익이 섞여 있다. 힘들어도 벗어나자."],
+"03-18":["침묵","말은 아끼고 조심하자. 때로는 말하지 않는 게 가장 좋은 대답이다."],
+"03-19":["내 생각만","나만, 우리만 생각하면 일이 꼬인다. 함께 살아간다는 마음으로 주변을 챙기자."],
+"03-20":["의리는 결국 돈","가까운 사이일수록 신세는 확실하게 갚자. 호의를 당연히 여기면 오래 가지 못한다."],
+"03-21":["거절하는 용기","마음처럼 다 도울 수는 없다. 거절해야 할 때 거절하는 것도 나를 지키는 용기다."],
+"03-22":["아니요","아니라고 말하는 건 이기적인 게 아니라 나의 경계를 지키고 서로를 존중하는 방법이다."],
+"03-23":["받고 싶은 대우","내가 받고 싶은 대우가 있다면, 그걸 상대에게 먼저 건네자."],
+"03-24":["차가운 말","누군가 차갑게 말한다면, 내가 먼저 그 사람에게 상처를 준 건 아닌지 돌아보자."],
+"03-25":["수퍼 '을' 모드","어디서나 자세를 낮추고 정중하게, 도울 일이 있으면 기꺼이 돕자. 그 태도가 좋은 사람을 끌어당긴다."],
+"03-26":["고객이 왕이다","고객이 왕이라는 말은 파는 사람의 마음가짐이다. 내가 손님일 때는 항의해도 정중하게."],
+"03-27":["주변의 도움","일이 잘 풀릴 때가 제일 위험하다. 내 실력만이 아니라 주변의 도움 덕이라는 걸 잊지 말자."],
+"03-28":["해결의 실마리","막히면 상황을 터놓고 도움을 청하자. 혼자 다 풀려 하지 말고 작은 것부터 하나씩."],
+"03-29":["해결해줄 사람","기대고 싶을 때일수록 이게 남이 풀 일인지 내가 풀어야 할 일인지 구분하자."],
+"03-30":["가장 나쁜 일","아끼는 사람의 일을 대신 해주는 건 그 사람의 힘을 빼앗는 일일 수 있다. 스스로 해낼 수 있다고 믿어주자."],
+"03-31":["부메랑","힘든 사람을 돕자. 건넌 도움은 언젠가 돌고 돌아 내게 온다."],
+"04-01":["지금의 선택","같은 데이터와 뉴스를 봐도 고르는 종목은 사람마다 다르다. 미래를 가르는 건 지금 내가 하는 선택이다."],
+"04-02":["배고픈 선택","배고플 때 장을 보면 필요 없는 걸 산다. 급하고 절박할 때는 매매 버튼에서 손을 떼자."],
+"04-03":["비전","오늘을 최선을 다해 사는 선택이 쌓이면 어느 순간 한 칸 올라서 있다. 그 계단이 비전이다."],
+"04-04":["뇌동매매","원칙이 없으면 매번 운에 맡기고 남을 따라간다. 원칙이 있어야 선택이 점점 나아진다."],
+"04-05":["남의 원칙","남의 원칙은 나를 지켜주지 않는다. 직접 겪으며 내 생활에 맞는 원칙을 만들자."],
+"04-06":["원칙이 없는 사람","기준 없는 사람의 말에 자꫾ 귀 기울이면 내 기준도 흐려진다."],
+"04-07":["복기","내 판단으로 한 매매여야 복기가 힘을 갖는다. 남의 추천으로 산 건 돌아봐도 배울 게 없다."],
+"04-08":["투자의 원칙","투자가 쉬워 보이면 원칙이 없는 것이고, 어렵다면 원칙을 세우는 중이다. 꾸준히 버는 사람에겐 반드시 원칙이 있다."],
+"04-09":["이기는 투자","매일 벌 수는 없어도 매일 원칙을 지킬 수는 있다. 원칙을 지킨 날은 잃어도 떳떳하다."],
+"04-10":["손절 원칙","원칙 없는 손실이 제일 아프다. 수익 원칙은 다음이어도 손절 원칙부터 완성하자."],
+"04-11":["원칙을 지켜야 하는 이유","원칙이 있으면 덜 벌 수는 있어도 남들과 같이 무너지진 않는다. 추격하다 물리고 바닥인 줄 샀다 물리는 걸 막아준다."],
+"04-12":["지키는 투자","원칙 매매는 수익을 최대로 만들어주진 않지만 자산을 지켜준다. 오래 가려면 그게 더 중요하다."],
+"04-13":["감당할 자산","감당할 수 있는 만큼만 투자하면 손절도 배움이 된다. 공부하는 동안엔 특히 금액을 작게."],
+"04-14":["본인의 판단","시장이 공포에 빠져도 늘릴 때라고 판단하면 늘리고, 오르는 중에도 현금이 필요하다고 보면 준비하자."],
+"04-15":["공포에 사서 환희에 팔아라","남들이 살 때 따라 사면 마음은 편하지만 내 생각은 없다. 외로워도 내 판단으로 고르자."],
+"04-16":["재료 소멸","사느냐 마느냐보다 원칙이 있느냐가 중요하다. 재료가 끝난 자리는 내 매매가 아니라고 선을 긋자."],
+"04-17":["원칙이 없으면","원칙이 없으면 기분에 따라 매매하게 되고, 그건 투자가 아니라 도박에 가깝다."],
+"04-18":["고수와 초보","고수와 초보의 차이는 노력보다 원칙에 있다. 원칙은 직접 해 보면서 몸에 익히는 수밖에 없다."],
+"04-19":["걱정","내 논리가 없으면 걱정만 늘어난다. 재료가 살아 있는지는 따져도, 쓸데없는 걱정은 버리자."],
+"04-20":["투자 원칙의 개념","투자 원칙은 정답이 하나인 공식이 아니라, 상황마다 다르게 풀어낼 수 있는 나만의 관점이다."],
+"04-21":["투자의 철학","같은 시장도 내 관점으로 다시 해석하는 것, 그게 투자 철학이다."],
+"04-22":["지키는 매매","버는 것보다 지키는 것이 먼저다. 매매할 때마다 잃지 않는 쪽을 먼저 생각하자."],
+"04-23":["투자 성공 비결","대가들이 공통으로 꼽는 비결은 원칙이다. 내가 지킬 원칙을 하나씩 쌓아 가자."],
+"04-24":["원칙이 없으니","시장은 늘 비슷한데 원칙이 없으면 매번 새롭고 어렵게 보인다."],
+"04-25":["판단의 근거","원칙에는 근거가 있고, 근거가 바뀌면 판단도 바꿔야 한다. 남의 말만 들으면 근거가 바뀐 것도 모른다."],
+"04-26":["운과 실력","원칙 없이 벌었다면 운으로 여기자. 다만 그런 수익이 계속 반복된다면 그건 실력이다."],
+"04-27":["좋은 기회","한 번의 결과에 흔들리지 말자. 실망스러운 결과는 전략을 점검하고 고칠 기회다."],
+"04-28":["흔들리지 않는 전략","오래 버는 사람들은 변동성에 휘둘리지 않고 자기 전략에 충실하다."],
+"04-29":["선택이 확신이 될 때","호재와 악재를 따져보고 산 좋은 종목이라면, 지수가 빠질 때가 오히려 기회다."],
+"04-30":["투자의 나침반","시장이 복잡해 판단이 흐려질수록 원칙이 길을 알려주는 나침반이 된다."],
+"05-01":["피할 수 없으면","스트레스를 안 받을 수는 없다. 대신 받은 그날 바로 풀어내는 건 할 수 있다."],
+"05-02":["\"안 돼\"","무리한 부탁엔 솔직하게 안 된다고 말하자. 쌓아두는 것보다 표현하는 게 더 빨리 풀린다."],
+"05-03":["쌓이면 풀기","하지 말아야 할 것들로 스트레스를 더 쌓기보다, 나만의 푸는 방법으로 하나씩 풀며 살자."],
+"05-04":["소중한 자산","건강은 배터리처럼 조금씩 닳는다. 방전되기 전에 충전하고, 지킬 수 있을 때 지키자."],
+"05-05":["늦지 않게","건강의 소중함을 깨닫는 때는 늦을 수 있다. 미뤄 둔 검진이 있다면 오늘 예약하자."],
+"05-06":["하루 5분","5분이라도 매일 움직이자. 투자처럼 건강도 루틴으로 관리해야 오래 간다."],
+"05-07":["걷기","걸으며 주변을 새롭게 보는 시간이 머리를 맑게 하고 배움을 돕는다."],
+"05-08":["마라토너","공부와 걷기는 머리와 몸을 함께 지키는 습관이다. 매일 조금씩이라도 챙기자."],
+"05-09":["건강한 80세","많이 가진 채 움직이지 못하는 노년보다 덜 가졌어도 하고 싶은 걸 할 수 있는 노년이 낫다. 공부하고 걷자."],
+"05-10":["작심삼일","의지로 버티는 노력은 오래 못 간다. 노력을 계속하게 해주는 건 습관이다."],
+"05-11":["습관","갑자기 한 결심은 쉽게 무너진다. 습관이 노력을 만들고, 노력이 결과를 만든다."],
+"05-12":["정돈된 이불","아침에 이불을 개는 것 같은 작은 습관이 하루를 정돈된 흐름으로 시작하고 끝내게 해준다."],
+"05-13":["평생 할 수 있는 일","한번에 해내려 하지 말고 '평생 할 수 있을까'를 먼저 물자. 내 삶에 맞는 방식을 찾자."],
+"05-14":["쉬어줄 때","자신이 없고 나약해질 때는 몰아붙이지 말고, 지금은 쉬어줄 때라고 인정하자."],
+"05-15":["인생은 길다","장거리 운전에 휴게소가 필요하듯, 일도 육아도 투자도 쉬는 시간을 함께 두자."],
+"05-16":["멍해질 때","멍한 순간은 당황할 일이 아니라 힘을 모으는 시간이다. 잠시 쉬고 다시 나를 찾자."],
+"05-17":["즐거운 일","안 좋은 일은 잊으려 할수록 남는다. 대신 즐거운 일로 하루를 채우면 걱정이 작아진다."],
+"05-18":["부정적인 기운","인생은 짧다. 부정적인 생각에 내 시간을 내주지 말자."],
+"05-19":["중요한 일","지금 하는 일이 정말 중요한지 스스로 계속 물어야 하루를 소중하게 쓸 수 있다."],
+"05-20":["인생이 바뀔까","바쁜 일상만 반복하면 미래도 그대로다. 이 하루가 내 인생을 바꾸는지 매일 물어보자."],
+"05-21":["미래와 맞닿은 일","지금 하는 일이 월급을 위한 반복인지, 내 미래로 이어지는 일인지 스스로 물어보자."],
+"05-22":["슬럼프","슬럼프가 오면 자책부터 하지 말고 잠, 운동, 스트레스, 일, 식사부터 점검하자."],
+"05-23":["인내","인내는 가만히 기다리는 게 아니라, 배우며 내 전략을 믿고 꾸준히 실행하는 것이다."],
+"05-24":["자괴감 I","놀며 보낸 시간이 내 삶에 플러스가 되는지 돌아보자. 의미 있는 만남과 흘려보낸 시간은 다르다."],
+"05-25":["자괴감 II","지금 놀고 있는 시간을 나중에 후회하지 않을지, 하기 전에 한 번 생각해보자."],
+"05-26":["인생의 대차대조표","삶도 플러스와 마이너스의 합이다. 만족스럽지 않다면 플러스가 되는 일을 더 채워 가자."],
+"05-27":["생각한 대로","마음을 편하게 다잡고, 본능이 아닌 미리 생각한 대로 매매하자."],
+"05-28":["스트레스","스트레스는 덜 받고, 받으면 바로 풀자. 쌓여두면 몸과 마음을 해친다."],
+"05-29":["마라톤","투자는 속도보다 꾸준함이다. 힘들면 숨을 돌리고 다시 달릴 힘을 모으면 된다."],
+"05-30":["일과 휴식의 균형","일에 대한 책임감만큼 나를 돌보고 쉬는 것도 중요하다."],
+"05-31":["여행을 떠나요","낯선 곳에서의 경험은 시야를 넓히고 생각을 새롭게 한다. 시간을 내어 어디든 떠나보자."],
+"06-01":["실천","하기로 했으면 한다. 느려도 방향만 맞으면 결국 도착한다."],
+"06-02":["자신의 속도","사람마다 성장 속도가 다르다. 내 수준에 맞는 페이스로 가면 실력은 따라온다."],
+"06-03":["승자","이기는 사람은 가장 강한 사람이 아니라 가장 오래 버틴 사람이다."],
+"06-04":["단기적 목표","시장이 힘들고 멘탈이 흔들릴 때는 눈앞의 수익만 좋고 있는 건 아닌지 돌아보자."],
+"06-05":["서 있는 위치","단기·중기·장기 계획을 그리고, 지금 내가 그 계획의 어디에 있는지 확인하자."],
+"06-06":["계획의 1%","아직 계획의 시작일 뿐이라고 여기자. 조급해지면 오히려 멀어진다."],
+"06-07":["실패한 계획","기한에 쫓기는 계획은 스트레스만 남긴다. '언제까지'보다 '지금부터'를 기준으로 세우자."],
+"06-08":["과정","새해 목표가 흔들린다면 결과만 보고 있었는지 점검하자. 목표는 과정으로 보는 것이다."],
+"06-09":["인생의 목표","목표가 먼 미래에 있다면 지금의 어려움은 결과가 아니라 가는 길의 일부다."],
+"06-10":["여유","욕심이 계획을 무너뜨린다. 마음의 여유를 두고 전체 계획을 먼저 떠올리자."],
+"06-11":["독기 말고 근성","짧게는 독기로 버틸 수 있지만, 오래 가는 공부와 투자에는 근성이 필요하다."],
+"06-12":["마라톤","주식 공부는 전력질주가 아니다. 인내심과 지속성으로 조금씩 나아가는 것이다."],
+"06-13":["챔피언","훈련이 힘들 때도 그만두지 않은 사람이 챔피언이 된다. 포기하고 싶을 때 원하는 미래를 떠올리자."],
+"06-14":["열매","나무를 심고 꾸준히 가꿔야 열매가 맺힌다. 당장 안 보여도 물을 주는 일을 멈추지 말자."],
+"06-15":["투지, 열정, 믿음","오래 해낼 힘은 미래에 대한 믿음에서 나온다. 그 믿음이 있을 때 오늘이 달라진다."],
+"06-16":["독서의 목적","책을 읽을 때도 목적을 정하자. 일과 생활에 도움이 되는 공부여야 꾸준히 이어진다."],
+"06-17":["공부란","모르는 분야도 끝까지 읽고 비슷한 책을 더 읽으면 보인다. 공부는 모르는 영역을 넓혀가는 일이다."],
+"06-18":["주식은 반복","하루도 빠짐없이 1년을 공부하면 시장이 비슷한 흐름을 반복한다는 게 보이기 시작한다."],
+"06-19":["믿음","주식으로 누구나 돈을 벌 수는 없다. 다만 짧게라도 제대로 집중해서 공부해 보면 시장을 보는 눈이 달라진다."],
+"06-20":["공부의 결과","데이터를 쌓고 몸에 익히면 뉴스와 공시를 빨리 읽게 되고, 준비한 재료가 시장에 반영되는 순간을 알아본다."],
+"06-21":["역경 vs. 끈기","역경은 누구에게나 온다. 미래를 가르는 건 역경이 아니라 그걸 버티는 끈기다."],
+"06-22":["그릿","무엇이든 처음 일주일이 가장 힘들다. 그 고비를 넘기는 끈기는 하루씩 버티며 생긴다."],
+"06-23":["노력한 만큼","노력한 만큼 얻는다는 것 자체가 행운이자 내 힘이다."],
+"06-24":["끝없는 성장","아는 게 전부라고 생각하는 순간 성장이 멈춘다. 계속 배우는 사람이 되자."],
+"06-25":["준비","장이 열리는 시간을 버티는 일을 지겨울 만큼 오래 반복해야, 시장에서 자유로워질 준비가 된다."],
+"06-26":["전진","지금 길이 어렵더라도 계속 가자. 어려움은 지나간다."],
+"06-27":["끈기","모든 게 바로 이뤄지지 않아도 괜찮다. 어려움을 겪으며 더 단단해진다."],
+"06-28":["기다림과 인내","오래 공부했는데 수익이 없다고 자책하지 말자. 공부를 내 것으로 만드는 것도 과정이다."],
+"06-29":["견고한 성공","잘될 때일수록 평소처럼 노력하자. 그래야 성과가 오래 간다."],
+"06-30":["기다림","내 가정이 언제 맞을지는 아무도 모른다. 그래서 기다림은 어렵지만 가장 중요한 힘이다."],
+"07-01":["의존","리딩방이나 종목 추천에 기대는 순간 내 판단은 사라진다. 남에게 기대는 투자를 가장 경계하자."],
+"07-02":["돈의 가치","가만히 둔 돈은 물가가 오르는 만큼 조금씩 가치가 줄어든다. 바르고 성과가 나는 곳에 일하게 하자."],
+"07-03":["진정한 투자","가장 좋은 투자처는 나 자신이다. 배우고 정보를 얻는 데 쓰는 돈을 아까워하지 말자."],
+"07-04":["돈의 목적","돈은 바로 쓰기보다 불리기 위해 있다. 투자로 생긴 성과만큼을 마음 편히 쓰자."],
+"07-05":["시간의 편","업황이 나빠지는데 고점에서 들고 있으면 시간은 적이고, 저점에서 모으면 시간은 내 편이다."],
+"07-06":["월 억으로 가는 길","종목·자리·재료를 빠르게 판단하고, 실제로 들어가고, 그 순간 욕심을 누르고 수익까지 챙기는 훈련이 필요하다."],
+"07-07":["운","모르는 종목을 사면 운에 맡기는 것뿐이다. 아는 종목만 매매하자."],
+"07-08":["운과 실력","투자에 운은 있다. 다만 그게 운이었는지 실력이었는지는 스스로 구분할 수 있어야 한다."],
+"07-09":["살아남는 방법","스스로 종목을 찾는 힘이 있어야 시장에서 오래 남는다. 놀칠까 봐 조급해하지 말자."],
+"07-10":["나이 든 사람의 투자","나이와 상황에 따라 맞는 투자 방식은 다르다. 옷처럼 나에게 맞는 방법을 찾자."],
+"07-11":["플레이 스타일","크게 번 매매와 크게 잃은 매매를 나란히 놓고 공통점을 찾으면 내 스타일이 보인다."],
+"07-12":["주식 투자의 목표","종목과 사랑에 빠지지 말자. 목표는 수익이고, 그러려면 냉정하게 판단해야 한다."],
+"07-13":["객관적인 판단","느낌이 아니라 숫자와 근거로 판단하자. 가치투자의 아버지 벤저민 그레이엄이 강조한 것도 객관성이다."],
+"07-14":["투자의 실체","고수는 미래를 맞히는 사람이 아니라, 여러 가능성을 열어두고 그에 맞는 전략을 짜는 사람이다."],
+"07-15":["고수의 전략","하나의 전망에 모든 걸 걸지 말고, 오를 때와 내릴 때의 대응을 미리 준비하자."],
+"07-16":["투자의 고수","소문과 뉴스를 구분하는 눈이 있어야 격언도 쓸모가 있다. 그 눈은 공부와 경험으로 생긴다."],
+"07-17":["투자의 조건","꾸준히 공부할 시간, 손절선을 정하고 지키는 용기, 오를 때 챙기는 절제. 이 세 가지가 크게 지지 않는 투자의 조건이다."],
+"07-18":["예측","내가 산 가격이 바닥이길 바라지 말자. 모아가는 동안 잠시 물리는 건 당연하게 보고, 전체 흐름을 보자."],
+"07-19":["전 세계 뉴스","매일 아침 세계 뉴스를 보는 습관이 쌓여야 시장을 이해하는 힘과 흔들리지 않는 전략이 생긴다."],
+"07-20":["현금흐름","평가익보다 실현손익이 중요하다. 초반에는 언제든 쓸 수 있는 돈을 늘려가자."],
+"07-21":["강한 테마","강한 테마는 잊힐 만하면 다시 돌아온다. 테마 하나를 깊이 알고 꾸준히 지켜보자."],
+"07-22":["현금 보유","할 게 없는 날에 억지로 찾다가 잃는다. 쉬는 날도 있고, 현금을 들고 있는 것도 투자다."],
+"07-23":["거래량","거래량이 터지는 건 사려는 사람이 몰렸다는 뜻이다. 거래량을 보면 시장의 관심이 보인다."],
+"07-24":["음봉에 매수한다","음봉 매수는 만능이 아니다. 추세가 꺾여 내려가거나 아직 돌아서지 않았을 때는 쓰지 말자."],
+"07-25":["상한가 재료","대장주가 간 뒤에 따라가면 늦다. 뉴스를 보자마자 상한가 재료인지, 수혜주가 무엇인지 떠올리는 연습을 하자."],
+"07-26":["위험을 감수할 준비","단기 매매는 변동성을 이용하는 만큼 위험도 크다. 손절선 같은 대비책을 먼저 정하자."],
+"07-27":["종목 매수 근거","단기 매매일수록 매수 근거가 분명해야 한다. 재무, 업황, 시황, 외부 요인을 함께 보자."],
+"07-28":["변동성","큰 변동성은 주식에서 당연하다. 두려워하기보다 이해하고 받아들이고 활용하자."],
+"07-29":["자신을 믿는 것","어느 쪽으로 가야 할지 모르는 순간은 누구에게나 온다. 그럴 때일수록 나를 믿자."],
+"07-30":["감정 제어","과열과 공포 속에서도 감정이 아니라 사실과 데이터로 내 전략을 지키자."],
+"07-31":["이익을 봤을 때","수익 중일 때 더 오를까, 놓칠까 하는 불안이 판단을 흔든다. 미리 정한 익절 원칙을 따르자."],
+"08-01":["최종 목표","월급 독립은 수단이지 최종 목표가 아니다. 그 다음에 무엇을 하고 싶은지를 물어보자."],
+"08-02":["진정한 목표","진짜 목표는 자유와 그걸로 누리고 싶은 삶이다. 가족과 여유 있게 보내는 시간 같은 것."],
+"08-03":["돈 이상의 것","돈만 보고 하는 공부와 매매는 오래 못 간다. 돈 너머의 이유가 있어야 계속할 수 있다."],
+"08-04":["실행","책을 아무리 많이 읽어도 실행하지 않으면 삶은 바뀌지 않는다."],
+"08-05":["나만의 질문","책에서 배운 생각을 내 질문으로 바꿔 고민해야 비로소 내 생각이 된다."],
+"08-06":["자기 객관화","나를 아는 건 생각보다 어렵지 않다. 분명한 기준점을 세우고 그걸로 나를 돌아보자."],
+"08-07":["일류의 고민","방향만 맞으면 속도는 상관없다. 다수나 소수를 따라가지 말고 스스로 생각한 방향으로 고민하자."],
+"08-08":["동일한 시간","하루 24시간은 누구에게나 같다. 그 시간을 어디에 쓰느냐가 삶의 모양을 만든다."],
+"08-09":["담담하게","큰 수익에 들뜨지 말고, 큰 손실에 무너지지 말자. 둘 다 담담하게."],
+"08-10":["평생의 투자","투자는 하루 이틀 하고 끝낼 일이 아니다. 하루 결과에 일희일비하지 말자."],
+"08-11":["반복의 역사","시장에서 반복돼 온 흐름을 알면 다음에 올 일을 미리 준비할 수 있다."],
+"08-12":["자신감","크게 번 사람이 끝까지 남긴 한 가지는 자신감, 즉 나를 믿는 마음이다."],
+"08-13":["넘어설 때","자신감은 의심을, 성장은 실패를, 평화는 원망을 넘어설 때 만들어진다."],
+"08-14":["열심히","열심히 살아온 경험에는 버릴 게 없다. 오늘도 내 자리에서 최선을 다하자."],
+"08-15":["잘된 이유","같은 일을 했는데 남이 잘됐다면, 내가 안 된 이유보다 그 사람이 잘된 이유를 찾자."],
+"08-16":["잘 버는 이유","크게 들어가는 건 정말 안전하다고 판단될 때뿐이다. 그 전엔 작게, 기다리자."],
+"08-17":["24시간 내내","무언가를 제대로 하려면 그것이 일상의 생각 속에 자연스럽게 자리 잡아야 한다."],
+"08-18":["성공의 과정","크게 잃은 날도 크게 번 날도 과정의 하루다. 얼마를 벌지보다 지금 벌어가는 중인지가 중요하다."],
+"08-19":["매일의 성공","목표를 도착점으로만 보면 매일이 실패지만, '가는 중'으로 보면 매일이 성공의 과정이다."],
+"08-20":["부자 마인드","자산이 일하게 만드는 건 중요하지만, 자산이 삶의 전부가 될 수는 없다."],
+"08-21":["부자의 길","자산을 일구어본 사람은 일의 소중함을 안다. 일하며 쌓이는 지식과 경험도 자산이다."],
+"08-22":["성공의 요인","큰 목표만 보다 보면 지금 '하고 있다'는 걸 잊는다. 하고 있는 그 자체가 성공의 요인이다."],
+"08-23":["가난한 사람 vs. 성공한 사람","남을 누르고 올라서려는 것보다 파이를 함께 키우는 게 먼저다."],
+"08-24":["끊임없는 노력","잘되는 사람은 더 오래 기다리고 더 오래 한다. 쉽게 그만두지 말자."],
+"08-25":["리스크 관리","자본이 과도한 위험에 노출되지 않게 하고, 손실을 줄이는 계획부터 세우자."],
+"08-26":["부자가 되려면","시장은 계속 변한다. 뉴스와 동향을 보며 끊임없이 배우는 자세가 필요하다."],
+"08-27":["선택과 집중","무언가를 고르면 무언가는 내려놓게 된다. 그 포기가 더 큰 성과로 이어질 수 있다."],
+"08-28":["명확한 전략","목표 금액, 감당할 위험, 기간을 정하고 나만의 전략에 따라 움직이자."],
+"08-29":["내 편이 되는 싸움","기한에 쫓기는 쪽이 지는 법이다. 시간이 내 편이 되는 자리에서 싸우자."],
+"08-30":["지피지기면 백전백승","상대와 나를 제대로 알면 위태롭지 않다. 시장도, 내 약점도 알고 들어가자."],
+"08-31":["틀린 가정","가정이 틀렸다고 느끼면 바로 고치자. 고집하면 잘못된 방향으로 계속 간다."],
+"09-01":["성공의 씨앗","하나를 정해서 꾸준히 해내는 것, 그게 성공의 씨앗이다."],
+"09-02":["노력이라는 밑거름","성공은 한 번에 오지 않는다. 오늘 뿌린 노력이 쌓여 큰 물줄기가 된다."],
+"09-03":["성공의 의미","돈, 명예, 지위는 남이 보는 성공일 수 있다. 내가 생각하는 성공은 무엇인지 물어보자."],
+"09-04":["나의 경쟁자","남의 기준이 아니라 내 기준의 성공을 쌓자. 경쟁자는 어제의 나다."],
+"09-05":["왜 멘탈이 깨졌는가","멘탈이 흔들릴 때는 버티기보다 무엇이 흔들었는지 원인부터 찾아 없애자."],
+"09-06":["성공하는 길","잘된 사람들도 대개 지름길이 아니라 돌아가는 길을 걸었다. 빠른 길만 찾지 말자."],
+"09-07":["디테일","작은 부분까지 챙기는 사람은 실수가 적다. 디테일이 수준을 만든다."],
+"09-08":["인생의 레벨","삶의 레벨은 눈에 보이지 않는다. 보이지 않아도 쌓이고 있다고 믿고 계속하자."],
+"09-09":["경험치","남이 앞서 간 건 얼마나 쌓았느냐의 차이일 수 있다. 레벨이 오를수록 더 어려운 도전이 필요하다."],
+"09-10":["성공은 선불","성공은 갑자기 오지 않는다. 먼저 낸 노력이 몇 년 뒤에 돌아온다."],
+"09-11":["믿음","독하게 버티는 것보다 나와 미래를 믿는 마음이 오래 간다."],
+"09-12":["무서운 사람","자랑하는 사람보다 하루하루 묵묵하게 나아지는 사람이 진짜 무서운 사람이다."],
+"09-13":["질문","배운 것에 계속 질문을 던져 내 생각으로 바꾸어야 전문가가 된다."],
+"09-14":["자신의 원칙","남들이 아니라고 할 때도 내 원칙을 지키자. 다만 내 원칙을 남에게 강요하지는 말자."],
+"09-15":["작은 성공 하나","하루 책 5쪽처럼 아주 작은 성공부터 만들자. 그게 다음 성공의 불씨가 된다."],
+"09-16":["성공의 방법","방법은 누구나 안다. 차이는 지겨운 것을 끝까지 반복하느냐에서 난다."],
+"09-17":["성공한 사람의 특징","잘된 사람들은 지름길보다 같은 일을 오랫동안 묵묵히 반복했다."],
+"09-18":["배울 점","제대로 노력해본 사람은 남에게서 배울 점을 찾는다. '나랑 안 맞아'로 넘기지 말자."],
+"09-19":["시간의 유랑자","남과 비교할수록 헤맨다. 어제보다 나아졌는지만 보자."],
+"09-20":["인간의 욕망","끌리는 대로가 아니라 욕망과 반대로 움직이는 힘은 꾸준한 훈련으로 생긴다."],
+"09-21":["반복의 힘","어느 분야든 비결은 지겨운 반복이다. 한 번 해본 사람은 다른 일에서도 반복을 잘한다."],
+"09-22":["성공을 향한 계단","지금 하는 일을 계단 하나로 보자. 한 칸씩 오르는 그 과정이 성공이다."],
+"09-23":["일희일비","하루의 성공과 실패에 흔들리는 마음으로는 목표까지 가기 어렵다."],
+"09-24":["성공의 길","크게 이루는 것만이 아니라 고민하고 배우며 성장하는 과정이 성공의 길이다."],
+"09-25":["성공적인 투자","성공적인 투자는 단기간에 오지 않는다. 시장을 이해하고 계속 배우는 게 기본이다."],
+"09-26":["의사결정의 결과","성과는 운 좋은 한 번이 아니라 깊은 이해와 장기 전략에서 나온 결정의 결과다."],
+"09-27":["에너지","화는 에너지를 크게 쓴다. 정말 중요한 일인지 물어보고, 에너지는 중요한 데 쓰자."],
+"09-28":["진정한 성공","진짜 성공은 쌓인 자산보다 멈추지 않는 배움과 성장에서 온다."],
+"09-29":["자기만족","잘 풀릴 때 자만하기 쉽다. 잘될 때일수록 평소처럼 일하고 공부하자."],
+"09-30":["평소의 노력","성공은 판단을 흐리고 더 큰 위험을 지게 한다. 그럴 때도 평소처럼 하면 오래 간다."],
+"10-01":["실패의 두 가지 경우","최선을 다한 실패는 배움을 남기고, 하다 만 실패는 핑계만 남긴다."],
+"10-02":["실패는 없다","다시 도전하는 한 완전한 실패는 없다. 성공으로 가는 과정일 뿐이다."],
+"10-03":["반드시 하게 될 실패","처음엔 대개 실패한다. 그래도 다시 해보고 실패를 들여다보면 조금씩 나아지고 있다."],
+"10-04":["그래도 해야 하는 이유","처음은 금방 무너져도 다음엔 조금 더, 그다음엔 더 버틴다. 그 시도들이 모두 내 것이 된다."],
+"10-05":["당연히 만나야 할 과정","육아도 직장도 힘들다. 비전이 있으면 한계를 목표로 가는 길에 당연히 만나는 과정으로 본다."],
+"10-06":["비전의 차이","누구나 한계를 느낀다. 그때 주저앉느냐 평소처럼 살아가느냐는 비전에서 갈린다."],
+"10-07":["어려울 때","힘들수록 해오던 일을 믿고, 함께하는 사람들에게 할 수 있다는 확신을 나누자."],
+"10-08":["굳건한 믿음","나를 믿지 못하면 어떤 일도 이루기 어렵다. 내 가능성을 굳게 믿자."],
+"10-09":["몇 번의 실패","실패를 두려워하지 말자. 몇 번 실패했는지 세지 않게 될 때 성공의 과정에 들어와 있다."],
+"10-10":["실패와 성취","지금의 실패는 나중의 성취로 가는 과정일 수 있다. 크게 도전한 만큼 배우는 것도 크다."],
+"10-11":["성공의 연결","실패가 쌓여야 작은 성공들이 서로 이어지기 시작한다."],
+"10-12":["기회","당장 큰 수익을 노리고 서두르지 말자. 꾸준히 공부하고 분석하며 성장하는 과정 자체가 소중한 기회다."],
+"10-13":["빚으로 실패하면","빚내서 투자하지 말자. 빚으로 실패하면 생활이 무너지고 다시 도전할 기회도 없다. 투자는 자산 관리다."],
+"10-14":["괴로워하기 전에","뇌동매매와 반복되는 실수에 지칠 때는 자책보다 먼저 투자 금액을 감당할 만큼 크게 줄이자."],
+"10-15":["실수의 인정","시장이 아니라면 아닌 것이다. 가정이 틀렸으면 바로 인정하고 방향을 바꾸자."],
+"10-16":["시장이 좋게 보는가","내가 틀릴 수 있다는 걸 염두에 두자. 내가 아니라 시장이 좋게 보는가를 물어야 한다."],
+"10-17":["공포에 빠질 때","포모에 휘둘리지 말고 하루를 돌아보자. 무엇이 손절하게, 무엇이 사게 만들었는지 배우면 성장한다."],
+"10-18":["좌절","투자를 하면 누구나 한계에 부딪히고 큰 실패도 겪는다. 다시 일어서는 것만으로도 대단한 일이다."],
+"10-19":["승패병가지상사","싸움에서 이기고 지는 건 흔한 일이다. 투자도 수많은 역경을 겪고 다시 일어나는 일이다."],
+"10-20":["실패한 적 없습니다","실패로 여기지 않으면 극복할 것도 없다. 실패라고 생각했던 일이 정말 실패였는지 돌아보자."],
+"10-21":["실패의 정의","실패가 무엇이냐는 그 뒤에 내가 어떻게 대처하느냐가 정한다."],
+"10-22":["작은 것부터","실패한 날에도 정돈된 방 같은 작은 질서가 내일을 다시 시작하게 해준다. 작은 것부터."],
+"10-23":["풀릴 일은 풀린다","힘들 때는 마음을 기댈 곳에서 용기를 얻자. 풀릴 일은 풀리고, 마주할 일은 마주하게 된다."],
+"10-24":["가장 큰 실수","실수할까 봐 아예 피하는 것이 가장 큰 실수다. 실수를 너무 두려워하지 말자."],
+"10-25":["아무것도 아닌 일","10년 뒤에서 보면 오늘의 상처와 창피한 순간은 수많은 감정 중 하나일 뿐이다."],
+"10-26":["한 부분","힘들었던 일도 지금까지 격은 수많은 일 가운데 한 조각일 뿐이다."],
+"10-27":["창피함 속에서 피어나는 기회","부끄러웠던 순간이 나를 더 잘 알게 하고, 더 나은 사람이 될 기회를 준다."],
+"10-28":["거친 훈련","잔잔한 바다는 노련한 선원을 만들지 못한다. 힘든 건 성장하고 있다는 증거다."],
+"10-29":["성장이 멈출 때","성장이 멈추면 그만두고 싶어진다. 새로운 자극으로 성장이 멈추지 않게 하자."],
+"10-30":["고난 후의 성장","기억할 건 고난 그 자체가 아니라, 그걸 거치며 무엇을 배우고 어떻게 더 나아졌는지다."],
+"10-31":["같은 실수","실수를 고치지 않으면 비슷한 실수가 또 온다. 실수는 해도 같은 실수는 반복하지 말자."],
+"11-01":["인사이트","분석하고, 데이터를 모아 종합하고, 벽에 막혔을 때 문득 연결되는 통찰. 이걸 반복해야 나만의 인사이트가 생긴다."],
+"11-02":["학교라는 착각","학교는 배우고 시험을 보지만 사회는 시험을 먼저 보고 배운다. 배운 대로만 될 거라고 기대하지 말자."],
+"11-03":["미미한 수준","어른의 공부는 준비 없이 치는 시험을 조금 더 잘 치기 위한 것이다. 내가 아는 건 아직 일부다."],
+"11-04":["핑계","돈이 없으면 아끼거나 벌고, 시간이 없으면 핸드폰을 줄이고, 체력이 없으면 운동하자. 핑계보다 방법을 찾자."],
+"11-05":["자신의 시나리오","내 관점으로 시장을 예측하되 맞을 거라고 믿지는 말자. 틀렸을 때 어떻게 대응할지가 더 중요하다."],
+"11-06":["남의 시나리오","남의 예측에 기대면 틀렸을 때 그 사람 탓만 하게 된다. 내 시나리오를 갖자."],
+"11-07":["공부의 의미","주식 공부는 시간을 채우는 게 아니라 시장의 의도를 읽으려는 것이다. 자기 만족형 공부는 경계하자."],
+"11-08":["독서의 의미","많이 읽는 것보다 질문하며 읽고 내 지식으로 쌓는 것이 중요하다."],
+"11-09":["관점을 만드는 방법","저자가 왜 이 문장을 골랐는지 계속 물으며 읽으면 내 관점이 생긴다."],
+"11-10":["세상에서 제일 무서운 사람","책 한 권만 읽으면 그것만 맞다고 믿기 쉽다. 여러 관점을 두루 읽자."],
+"11-11":["역사","투기의 역사를 보면 시장의 광기는 늘 닮아 있다. 새로 나타난 기술이 과열의 시작이 되곤 한다."],
+"11-12":["하수의 증거","팔고 나서 더 오른다고 아쉬워하지 말자. 확보한 현금으로 다음 종목을 찾으면 된다."],
+"11-13":["만족","보는 눈이 맞았다는 데 만족하고 실력 부족을 인정하지 않으면 중요한 걸 계속 놓친다. 보는 것과 수익을 내는 것은 다르다."],
+"11-14":["실력 부족","조급함 자체가 실력이 부족하다는 신호다. 부족함을 인정하고 천천히 수익을 쌓아가자."],
+"11-15":["대장주","중요한 건 대장주가 상한가를 간 뒤가 아니라, 가기 전에 갈지 판단하는 눈이다."],
+"11-16":["변동성 예측","매일 아침 세계 뉴스를 보며 글로벌 흐름을 익히면 시장의 변동에 미리 대비할 수 있다."],
+"11-17":["열린 눈","경주마처럼 한쪽만 보지 말고 넓게 보자. 그래야 내 종목이 왜 안 오르는지 보인다."],
+"11-18":["결정의 근거","결정에는 내 근거가 있어야 한다. 감이나 느낌도 근거가 쌓여야 힘이 된다."],
+"11-19":["자기 자신","수익 난 종목과 손실 난 종목을 나란히 정리하면 어느 종목군에 강하고 약한지, 나를 알게 된다."],
+"11-20":["강점 공략","내 플레이 스타일과 강점·약점을 알면, 약점은 피하고 강점 중심으로 공략할 수 있다."],
+"11-21":["성찰","조언이 잔소리로 들리고 '나도 이제 되겠다' 싶을 때가 가장 위험하다. 할 만하다 싶을수록 기본을 닦자."],
+"11-22":["생각의 물꼬","'왜 이렇게 힘들지?' 대신 '어떻게 하면 즐겁게 할까?'로 생각의 방향을 바꾸자."],
+"11-23":["한 걸음 먼저","생각의 방향을 바꿨다면 다음은 작은 행동 하나다. 오늘 미리 해두면 내일이 편해지는 일을 하나만 골라 해두자. (Claude가 쓴 날)"],
+"11-24":["선제적 생각","문제는 한발 앞서 생각하자. 따라가기 시작하면 따라붙기 어렵다."],
+"11-25":["상수와 변수","내가 보고 있는 상수와 변수가 어떻게 변해가는지 계속 해석하고, 처음 가정이 맞는지 확인하자."],
+"11-26":["통찰","인지와 종합을 거치면 사물이 달리 보이는 때가 온다. 그 통찰의 단계까지 올라가자."],
+"11-27":["의견을 바꾸는 것","상황이 바뀌면 의견을 바꾸는 건 부끄러운 일이 아니다."],
+"11-28":["아는 만큼","아는 만큼 보이고 받아들여진다. 안 맞는다고 자꾸 다른 걸 찾아다니면 실력은 제자리다."],
+"11-29":["보려는 노력","못 보는 건 보려고 하면 되지만, 일부러 안 보려고 하면 발전하지 않는다."],
+"11-30":["확신","미래에 대한 믿음이 있으면 지금의 고생을 버틸 힘이 된다."],
+"12-01":["놓아야 채운다","배우고 채우는 만큼, 시간·공간·에너지·감정을 내려놓는 것도 중요하다. 균형이다."],
+"12-02":["바꿀 수 없는 것","바꿀 수 없는 조건과 싸우지 말고 바꿀 수 있는 것을 바꿔 가자. 인생은 길다, 호흡을 길게."],
+"12-03":["잔소리","준비가 안 되면 좋은 말도 잔소리로 들린다. 내 말이 잔소리가 되고 있진 않은지도 돌아보자."],
+"12-04":["새 시대의 주인","답보다 질문을 잘하는 게 중요해지고 있다. 오늘은 나에게 질문 하나를 던져보자."],
+"12-05":["논거를 가진 사람","좋은 질문을 한다는 건 내 논거가 있다는 뜻이다. 물을 때 내 생각부터 정리하자."],
+"12-06":["논리","'왜'라고 묻는 습관이 근거와 논리를 만든다. 무조건 안 된다고 하기 전에 이유를 묻자."],
+"12-07":["책의 내용을 얻으려면","많이 읽는 것보다 질문하며 읽어야 내것이 된다. 결론만 아는 건 쓸모가 적다."],
+"12-08":["목적의식","성장하려면 목적이 분명해야 한다. 지금 노력이 단기 성장인지 장기 성장인지 물어보자."],
+"12-09":["생각의 결과","지금의 나는 지난 생각과 행동의 결과다. 오늘을 바꾸면 미래가 달라질 수 있다."],
+"12-10":["어떻게 될까?","살 때도 팔 때도 '그다음엔 어떻게 될까?'를 먼저 물으면 매매가 편해진다."],
+"12-11":["벌어진 일의 분석","이미 일어난 일의 분석을 잇지 말고, 그다음에 어떻게 될지를 생각하자."],
+"12-12":["꼬리를 무는 질문","차트에서 재료로, 재료에서 시황으로, 시황에서 대장주로. 하나에서 멈추지 말고 질문을 이어 가자."],
+"12-13":["역사는 반복된다","새 뉴스를 과거의 비슷한 일과 연결할 수 있어야 확신을 갖고 들어갈 수 있다."],
+"12-14":["없는 보물섬","덜 공부하고 더 빨리 가는 비법은 없다. 그걸 찾는 건 없는 보물섬을 찾는 일이다."],
+"12-15":["나만의 방식","남의 방법을 그대로 따라서는 내 것이 안 된다. 내 방식으로 다시 해석해야 내 것이 된다."],
+"12-16":["자신의 생각","정보가 넘칠수록 중심을 잡자. 질문을 통해 정보를 내 생각과 아이디어로 바꾸자."],
+"12-17":["자신감이 떨어진 이유","자신감이 떨어지면 이유를 물자. 시장 변동성인지, 최근 손실인지, 막연한 불안인지."],
+"12-18":["어제보다 열심히","어제보다 열심히 살고 있는가를 물어보고, 답이 '그렇다'면 더 흔들리지 말자."],
+"12-19":["투자는 노동","투자는 고된 정신 노동이다. 자산을 쌓는 것만큼 그 과정에서 배우고 성장하는 게 중요하다."],
+"12-20":["성공의 비결","포기하지 않는 것. 성과는 끊임없는 노력에서 나온다. 한 번 잘못 샀다고 좌절하지 말자."],
+"12-21":["불행을 행운으로","힘든 일을 기회로 바꾸는 건 마음가짐이다. 그 과정에서 배운 것을 잊지 말자."],
+"12-22":["변화의 용기","어려운 시기는 누구에게나 온다. 그 어려움이 인내와 끈기, 변화할 용기를 가르쳐 준다."],
+"12-23":["고통의 끝","인내가 지금의 나를 만든다. 힘든 시기도 결국은 지나간다는 걸 기억하자."],
+"12-24":["믿음","오늘도 믿음을 갖고 시작하자. 좋은 날을 기다리기만 하지 말고 오늘 좋은 일을 찾아 나서자."],
+"12-25":["부정적인 감정","불안, 슬픔, 분노는 자연스러운 감정이다. 억누르기보다 인정하고 표현하는 게 건강한 방법이다."],
+"12-26":["위기는 기회","꽉 막혔을 때는 잠시 쉬며 생각을 정리하자. 돌아보고 재조정하는 시간으로 쓰면 위기가 기회가 된다."],
+"12-27":["유연성","상황이 바뀌면 전략을 고치고 새 상황에 적응하자. 그 유연함이 역경을 넘게 한다."],
+"12-28":["의욕","오늘 하루를 살아낸 것 자체를 성공으로 보면, 힘든 날에도 의욕을 찾을 수 있다."],
+"12-29":["새로운 경험","도전에는 가정이 필요하고, 경험이 많을수록 가정이 정확해진다. 가정이 틀릴 때의 대책도 함께 세우자."],
+"12-30":["새로운 처방","판단이 틀렸다고 보이면 체면 때문에 고집하지 말고 빨리 처방을 바꾸자. 투자도 같다."],
+"12-31":["새로운 내일","어제보다 나은 하루, 지난달보다 나은 한 달, 작년보다 나은 한 해였는지 돌아보고, 새로운 내일을 준비하자."]
+};
+const Q={
+"01-01":"올해 매일 쌓고 싶은 하루는 어떤 모습인가요?",
+"01-02":"오늘이 마지막 날이라면 무엇을 다르게 하겠어요?",
+"01-03":"내일 아침을 위해 오늘 밤 무엇을 준비할 수 있나요?",
+"01-04":"앞으로 10년, 가장 귀하게 쓰고 싶은 시간은 무엇인가요?",
+"01-05":"이번 주에 측정할 수 있는 작은 목표 하나는 무엇인가요?",
+"01-06":"매일 쓰는 것들 속에서 투자 아이디어를 찾아본 적이 있나요?",
+"01-07":"올해 내가 향하는 목표 지점을 한 문장으로 적으면?",
+"01-08":"지금 내 투자 실력은 솔직히 어느 수준인가요?",
+"01-09":"처음이라 망설이고 있는 일이 있나요?",
+"01-10":"오늘 시작할 수 있는 가장 작은 일은 무엇인가요?",
+"01-11":"지금 노력해야 할 일을 미루고 있진 않나요?",
+"01-12":"월급 외의 소득을 위해 지금 무엇을 준비하고 있나요?",
+"01-13":"기회가 왔을 때 잡을 준비가 되어 있나요?",
+"01-14":"올해 처음 해볼 일은 무엇인가요?",
+"01-15":"내가 닮고 싶은 최고 수준의 경험은 무엇인가요?",
+"01-16":"최근 처음 해본 일은 무엇이었고, 어땠나요?",
+"01-17":"이번 주 시간·사람·장소 중 하나를 바꾼다면 무엇을 바꾸겠어요?",
+"01-18":"투자에서 나는 배우는 단계, 함께하는 단계, 즐기는 단계 중 어디인가요?",
+"01-19":"용기가 없어 시작 못 한 일이 있나요?",
+"01-20":"오늘 내딛을 첫걸음은 무엇인가요?",
+"01-21":"미뤄 둔 결정이 있나요? 오늘 내린다면?",
+"01-22":"요즘 내가 잘하고 있는 것은 무엇인가요?",
+"01-23":"새로 시작하려다 멈춘 일이 있나요?",
+"01-24":"알고만 있고 행동하지 않은 것은 무엇인가요?",
+"01-25":"나를 믿지 못했던 순간은 언제였나요?",
+"01-26":"최근 실망스러웠던 결과에서 무엇을 다시 시작할 수 있나요?",
+"01-27":"요즘 새로 배우고 있는 것은 무엇인가요?",
+"01-28":"힘든 상황에서 나의 강점은 무엇이었나요?",
+"01-29":"닿기 힘들 만큼 큰 목표가 하나 있다면?",
+"01-30":"결과와 상관없이 해본 것만으로 남은 경험은?",
+"01-31":"지는 날을 어떻게 넘기는 편인가요?",
+"02-01":"안 될 이유보다 해야 할 이유를 적어본다면?",
+"02-02":"망설이다 시도조차 안 해서 후회한 일이 있나요?",
+"02-03":"불안할 때 익숙한 선택만 하고 있진 않나요?",
+"02-04":"급하게 판단하기 전에 멈추는 나만의 방법이 있나요?",
+"02-05":"낯선 일을 시작할 때 나의 태도는 어떤가요?",
+"02-06":"두려움 때문에 피하고 있는 결정이 있나요?",
+"02-07":"정말 그만큼 노력했는지 스스로 답한다면?",
+"02-08":"노력 없이 결과만 바란 적은 없었나요?",
+"02-09":"최근의 실수를 다음 도전의 연료로 바꾼다면?",
+"02-10":"질문만 하고 실행하지 않은 것이 있나요?",
+"02-11":"지금 내가 집중해야 할 범위는 어디까지인가요?",
+"02-12":"손절한 날에도 스스로 납득할 만큼 준비했나요?",
+"02-13":"요즘 나는 설렘과 두려움 중 어느 쪽에 더 끌리나요?",
+"02-14":"인생의 끝에서 돌아오고 싶을 오늘은 어떤 모습인가요?",
+"02-15":"두렵지만 도전하고 싶은 일은 무엇인가요?",
+"02-16":"요즘 몰입할 만큼 어려운 과제가 있나요?",
+"02-17":"너무 쉬워서 성장이 멈춘 일은 없나요?",
+"02-18":"일할 때 다른 생각에 흔들리고 있진 않나요?",
+"02-19":"내가 자주 쓰는 변명은 무엇인가요?",
+"02-20":"늦었다고 포기한 일이 있나요?",
+"02-21":"꼭 가야 할 길에서 나를 의심하고 있진 않나요?",
+"02-22":"배운 것 중 아직 직접 해보지 않은 것은?",
+"02-23":"지금 힘든 것은 무엇이고, 그걸 넘으면 무엇이 자랄까요?",
+"02-24":"오늘 해낸 것 한 줄을 적는다면?",
+"02-25":"오늘 한 발짝 더 나아간 것은 무엇인가요?",
+"02-26":"도전하며 처음 본 결과가 있었나요?",
+"02-27":"지금의 어려움이 지나가면 무엇이 남을까요?",
+"02-28":"실망스러운 결과가 나에게 보내는 신호는 무엇인가요?",
+"03-01":"함께 멀리 가고 싶은 사람은 누구인가요?",
+"03-02":"최근 다른 사람의 성공을 진심으로 축하해 본 적이 있나요?",
+"03-03":"오래 가고 싶은 인연에 힘을 쏟고 있나요?",
+"03-04":"가까운 사람이 잘되도록 내가 도울 수 있는 일은?",
+"03-05":"가진 것을 나눈 경험이 있나요?",
+"03-06":"나는 주변 사람에게 어떤 사람인가요?",
+"03-07":"가장 가까운 몇 사람은 나를 어떻게 보여주나요?",
+"03-08":"성장하면서 자연스레 멀어지거나 새로 만난 사람이 있나요?",
+"03-09":"앞으로 나아갈 때 들리는 말에 흔들린 적이 있나요?",
+"03-10":"더 늦기 전에 아껴줄 사람은 누구인가요?",
+"03-11":"쉬는 날 가족에게 집중하고 있나요?",
+"03-12":"아이에게 자신감을 주는 나만의 방법은?",
+"03-13":"남에게 보여주기 위한 매매를 하고 있진 않나요?",
+"03-14":"나와 다른 사람에게서 최근 배운 점은?",
+"03-15":"진심 어린 충고를 잔소리로 듣고 있진 않나요?",
+"03-16":"함께하기로 한 사람을 온전히 믿고 있나요?",
+"03-17":"나를 위한 조언과 나를 조종하는 말을 구분하고 있나요?",
+"03-18":"말하지 않았으면 더 좋았을 말이 있었나요?",
+"03-19":"나만 생각하다 놓친 사람이 있나요?",
+"03-20":"가까운 사이일수록 신세를 잘 갚고 있나요?",
+"03-21":"거절하지 못해 힘들었던 적이 있나요?",
+"03-22":"오늘 '아니요'라고 말해야 할 일이 있나요?",
+"03-23":"내가 받고 싶은 대우를 먼저 건네고 있나요?",
+"03-24":"누군가의 차가운 말 뒤에 내 행동은 없었나요?",
+"03-25":"어디서나 정중한 태도를 지키고 있나요?",
+"03-26":"손님일 때 나의 태도는 어떤가요?",
+"03-27":"잘될 때 주변의 도움을 잊고 있진 않나요?",
+"03-28":"막힐 때 도움을 청하는 편인가요?",
+"03-29":"남이 풀어주길 기다리는 일이 있나요?",
+"03-30":"아끼는 사람의 일을 대신 해주고 있진 않나요?",
+"03-31":"최근 누군가를 도운 일이 있나요?",
+"04-01":"같은 정보로 나는 어떤 선택을 하나요?",
+"04-02":"급하고 절박할 때 매매하고 있진 않나요?",
+"04-03":"오늘의 선택은 어떤 계단을 쌓고 있나요?",
+"04-04":"원칙 없이 남을 따라 매매한 적이 있나요?",
+"04-05":"내 생활에 맞는 나만의 원칙은 무엇인가요?",
+"04-06":"기준 없는 말에 흔들린 적이 있나요?",
+"04-07":"최근 매매를 복기한다면 무엇이 보이나요?",
+"04-08":"꾸준히 지키는 나의 투자 원칙은 무엇인가요?",
+"04-09":"오늘 원칙을 지켰나요?",
+"04-10":"나의 손절 원칙은 완성되어 있나요?",
+"04-11":"원칙 덕분에 큰 손실을 피한 적이 있나요?",
+"04-12":"수익보다 자산을 지키는 매매를 하고 있나요?",
+"04-13":"지금 투자 금액은 감당할 수 있는 수준인가요?",
+"04-14":"남과 다르게 판단해 본 적이 있나요?",
+"04-15":"외로워도 내 판단으로 고른 종목이 있나요?",
+"04-16":"재료가 끝난 자리에서 미련을 버리고 있나요?",
+"04-17":"기분에 따라 매매한 날이 있었나요?",
+"04-18":"직접 해보며 익힌 원칙은 무엇인가요?",
+"04-19":"쓸데없는 걱정에 시간을 쓰고 있진 않나요?",
+"04-20":"나만의 투자 관점을 한 문장으로 적는다면?",
+"04-21":"같은 시장을 나는 어떻게 해석하나요?",
+"04-22":"매매할 때 잃지 않는 쪽을 먼저 생각하나요?",
+"04-23":"내가 쌓아 가고 있는 원칙은 몇 개인가요?",
+"04-24":"시장이 매번 새롭고 어렵게 보이진 않나요?",
+"04-25":"내 판단의 근거가 바뀐 것을 알아챘나요?",
+"04-26":"최근 수익은 운이었나요, 실력이었나요?",
+"04-27":"한 번의 결과로 전략을 바꾸려 하진 않나요?",
+"04-28":"변동성 속에서 내 전략을 지키고 있나요?",
+"04-29":"좋은 종목인데 지수 때문에 놓친 기회가 있나요?",
+"04-30":"판단이 흐려질 때 나를 잡아주는 원칙은?",
+"05-01":"오늘 받은 스트레스를 오늘 풀었나요?",
+"05-02":"무리한 부탁에 '안 돼'라고 말할 수 있나요?",
+"05-03":"나만의 스트레스 푸는 방법은 무엇인가요?",
+"05-04":"내 건강 배터리는 지금 몇 퍼센트인가요?",
+"05-05":"미뤄 둔 건강검진이나 관리가 있나요?",
+"05-06":"매일 5분이라도 하는 운동이 있나요?",
+"05-07":"최근 걸으며 머리를 비운 적이 있나요?",
+"05-08":"공부와 걷기를 꾸준히 하고 있나요?",
+"05-09":"80세의 나는 무엇을 할 수 있길 바라나요?",
+"05-10":"의지가 아닌 습관으로 하고 있는 일은?",
+"05-11":"만들고 싶은 습관 하나는 무엇인가요?",
+"05-12":"하루를 정돈하는 나의 작은 습관은?",
+"05-13":"평생 할 수 있는 방식으로 하고 있나요?",
+"05-14":"지금 쉬어줄 때라고 느끼나요?",
+"05-15":"최근 나에게 휴게소 같은 시간이 있었나요?",
+"05-16":"멍한 시간을 어떻게 보내나요?",
+"05-17":"오늘 즐거웠던 일 하나는?",
+"05-18":"부정적인 생각에 시간을 내주고 있진 않나요?",
+"05-19":"지금 하는 일은 정말 중요한 일인가요?",
+"05-20":"오늘 하루가 내 인생을 바꾸는 데 어떤 역할을 했나요?",
+"05-21":"지금 일은 내 미래와 이어져 있나요?",
+"05-22":"슬럼프가 오면 무엇부터 점검하나요?",
+"05-23":"요즘 무엇을 인내하고 있나요?",
+"05-24":"최근 놀며 보낸 시간이 플러스였나요?",
+"05-25":"지금 이 시간을 나중에 후회하지 않을까요?",
+"05-26":"내 삶의 대차대조표에서 플러스는 무엇인가요?",
+"05-27":"본능대로 매매한 적이 있나요?",
+"05-28":"쌓인 스트레스가 있나요?",
+"05-29":"힘들 때 숨을 고르는 나만의 방법은?",
+"05-30":"일과 휴식의 균형은 어떤가요?",
+"05-31":"가 보고 싶은 낯선 곳은 어디인가요?",
+"06-01":"하기로 했는데 아직 안 한 일이 있나요?",
+"06-02":"남의 속도와 나를 비교하고 있진 않나요?",
+"06-03":"오래 버티고 있는 일은 무엇인가요?",
+"06-04":"눈앞의 수익만 쫓고 있진 않나요?",
+"06-05":"내 계획에서 지금 나는 어디쯤인가요?",
+"06-06":"조급해서 계획보다 앞서 가려 한 적이 있나요?",
+"06-07":"'지금부터' 할 수 있는 계획은 무엇인가요?",
+"06-08":"올해 목표를 과정으로 다시 적어본다면?",
+"06-09":"먼 목표를 생각하면 지금의 어려움은 어떻게 보이나요?",
+"06-10":"욕심 때문에 계획이 흔들린 적이 있나요?",
+"06-11":"독기가 아니라 근성으로 하고 있는 일은?",
+"06-12":"공부를 전력질주처럼 하고 있진 않나요?",
+"06-13":"포기하고 싶을 때 떠올릴 나의 미래는?",
+"06-14":"꾸준히 물을 주고 있는 나무는 무엇인가요?",
+"06-15":"내 미래에 대한 믿음이 있나요?",
+"06-16":"요즘 읽는 책의 목적은 무엇인가요?",
+"06-17":"끝까지 읽은 낯선 분야의 책이 있나요?",
+"06-18":"시장에서 반복되는 흐름을 발견한 적이 있나요?",
+"06-19":"짧게라도 제대로 집중해 공부해 본 적이 있나요?",
+"06-20":"공부한 재료가 시장에 반영되는 순간을 알아본 적이 있나요?",
+"06-21":"역경을 버티게 하는 나의 끈기는 어디서 오나요?",
+"06-22":"새로 시작한 일의 첫 일주일을 넘겼나요?",
+"06-23":"노력한 만큼 얻은 경험이 있나요?",
+"06-24":"다 안다고 생각해 멈춘 공부가 있나요?",
+"06-25":"장이 열리는 시간을 버티는 연습을 하고 있나요?",
+"06-26":"지금 힘든 길에서도 계속 가고 있나요?",
+"06-27":"어려움을 겪으며 단단해진 점은?",
+"06-28":"공부했는데 수익이 없다고 자책하고 있진 않나요?",
+"06-29":"잘될 때도 평소처럼 노력하고 있나요?",
+"06-30":"기다림이 가장 어려웠던 순간은?",
+"07-01":"남의 추천에 기대 매수한 적이 있나요?",
+"07-02":"내 돈은 지금 어디서 일하고 있나요?",
+"07-03":"나 자신에게 투자하고 있는 것은 무엇인가요?",
+"07-04":"투자 수익으로 하고 싶은 일은 무엇인가요?",
+"07-05":"지금 시간은 내 편인가요, 적인가요?",
+"07-06":"판단·진입·수익 실현 중 가장 약한 것은?",
+"07-07":"모르는 종목을 사고 있진 않나요?",
+"07-08":"최근 수익을 운과 실력으로 구분해 본다면?",
+"07-09":"스스로 종목을 찾는 힘을 기르고 있나요?",
+"07-10":"지금 나에게 맞는 투자 방식은 무엇인가요?",
+"07-11":"크게 번 매매와 크게 잃은 매매의 공통점은?",
+"07-12":"종목과 사랑에 빠진 적이 있나요?",
+"07-13":"느낌이 아닌 숫자로 판단하고 있나요?",
+"07-14":"여러 가능성을 열어두고 전략을 짜고 있나요?",
+"07-15":"오를 때와 내릴 때의 대응을 미리 준비했나요?",
+"07-16":"소문과 뉴스를 구분하고 있나요?",
+"07-17":"공부 시간, 손절 용기, 절제 중 무엇이 부족한가요?",
+"07-18":"잠시 물린 종목에 흔들리고 있진 않나요?",
+"07-19":"매일 아침 세계 뉴스를 보고 있나요?",
+"07-20":"언제든 쓸 수 있는 현금은 충분한가요?",
+"07-21":"깊이 알고 있는 테마가 있나요?",
+"07-22":"할 게 없는 날 억지로 매매하고 있진 않나요?",
+"07-23":"거래량으로 시장의 관심을 읽고 있나요?",
+"07-24":"추세가 꺾인 종목을 음봉이라며 사고 있진 않나요?",
+"07-25":"뉴스를 보자마자 상한가 재료를 떠올리는 연습을 하고 있나요?",
+"07-26":"단기 매매 전에 손절선을 정하고 있나요?",
+"07-27":"이번 매수의 근거를 분명히 말할 수 있나요?",
+"07-28":"변동성을 두려워하고 있진 않나요?",
+"07-29":"길을 모를 때 나를 믿고 있나요?",
+"07-30":"감정이 아닌 데이터로 판단하고 있나요?",
+"07-31":"수익 중일 때 익절 원칙을 지키나요?",
+"08-01":"월급 독립 다음에 하고 싶은 것은?",
+"08-02":"내가 누리고 싶은 진짜 자유는 어떤 모습인가요?",
+"08-03":"돈 너머 내가 공부하는 이유는?",
+"08-04":"읽고 나서 실천한 것이 있나요?",
+"08-05":"최근 읽은 내용을 내 질문으로 바꾼다면?",
+"08-06":"나를 돌아보는 나만의 기준점은?",
+"08-07":"남이 아닌 내 생각대로 고민하고 있나요?",
+"08-08":"오늘 24시간을 어디에 썼나요?",
+"08-09":"큰 수익이나 손실에 담담한가요?",
+"08-10":"하루 결과에 일희일비하고 있진 않나요?",
+"08-11":"반복되는 시장 흐름 중 기억할 것은?",
+"08-12":"나를 믿는 마음이 흔들린 적이 있나요?",
+"08-13":"최근 넘어선 의심이나 실패가 있나요?",
+"08-14":"오늘 내 자리에서 최선을 다했나요?",
+"08-15":"남이 잘된 이유를 찾아본 적이 있나요?",
+"08-16":"정말 안전할 때만 크게 들어가고 있나요?",
+"08-17":"투자가 내 일상에 자연스럽게 자리 잡았나요?",
+"08-18":"지금 나는 벌어가는 중인가요?",
+"08-19":"목표를 도착점이 아닌 '가는 중'으로 보고 있나요?",
+"08-20":"자산 외에 내 삶에서 중요한 것은?",
+"08-21":"일하며 쌓인 나의 자산은 무엇인가요?",
+"08-22":"지금 '하고 있는' 것 자체를 인정하고 있나요?",
+"08-23":"함께 파이를 키우는 쪽을 택하고 있나요?",
+"08-24":"쉽게 그만둔 일이 있나요?",
+"08-25":"과도한 위험에 노출된 자금은 없나요?",
+"08-26":"요즘 시장 동향을 꾸준히 배우고 있나요?",
+"08-27":"무엇을 고르기 위해 무엇을 내려놓았나요?",
+"08-28":"목표 금액, 감당할 위험, 기간을 정했나요?",
+"08-29":"시간이 내 편인 자리에서 싸우고 있나요?",
+"08-30":"시장과 내 약점을 알고 들어가나요?",
+"08-31":"틀린 가정을 고집하고 있진 않나요?",
+"09-01":"하나를 정해 꾸준히 하고 있는 것은?",
+"09-02":"오늘 뿌린 노력은 무엇인가요?",
+"09-03":"내가 생각하는 성공은 무엇인가요?",
+"09-04":"어제의 나보다 나아진 점은?",
+"09-05":"멘탈이 흔들린 원인은 무엇이었나요?",
+"09-06":"빠른 길만 찾고 있진 않나요?",
+"09-07":"작은 부분까지 챙기고 있나요?",
+"09-08":"보이지 않아도 쌓이고 있는 것은?",
+"09-09":"남과의 차이를 무엇으로 메우고 있나요?",
+"09-10":"몇 년 뒤 돌아올 노력을 지금 하고 있나요?",
+"09-11":"버티기보다 믿음으로 가고 있나요?",
+"09-12":"묵묵히 나아지고 있는 것은?",
+"09-13":"배운 것에 질문을 던지고 있나요?",
+"09-14":"남이 아니라고 해도 지키는 원칙이 있나요?",
+"09-15":"오늘 만든 작은 성공은 무엇인가요?",
+"09-16":"알면서도 반복하지 않은 방법이 있나요?",
+"09-17":"오랫동안 반복하고 있는 일은?",
+"09-18":"'나랑 안 맞아'로 넘긴 배울 점이 있나요?",
+"09-19":"남과 비교하고 있진 않나요?",
+"09-20":"욕망과 반대로 움직여 본 적이 있나요?",
+"09-21":"지겨운 반복을 견디고 있는 일은?",
+"09-22":"지금 일은 어떤 계단인가요?",
+"09-23":"하루의 결과에 흔들리고 있진 않나요?",
+"09-24":"성장하는 과정 자체를 즐기고 있나요?",
+"09-25":"단기간 성과만 기대하고 있진 않나요?",
+"09-26":"최근 결정은 깊은 이해에서 나왔나요?",
+"09-27":"화에 에너지를 쓰고 있진 않나요?",
+"09-28":"자산 말고 나를 키우는 것은?",
+"09-29":"잘 풀릴 때 자만하고 있진 않나요?",
+"09-30":"성공 후에도 평소처럼 하고 있나요?",
+"10-01":"최근 실패는 최선을 다한 실패였나요?",
+"10-02":"다시 도전하고 싶은 일이 있나요?",
+"10-03":"실패를 들여다보고 배운 점은?",
+"10-04":"조금씩 더 버티고 있는 일은?",
+"10-05":"한계를 만난 과정에서 무엇을 보았나요?",
+"10-06":"한계에서 주저앉았나요, 계속 갔나요?",
+"10-07":"힘들 때 해오던 일을 믿고 있나요?",
+"10-08":"내 가능성을 믿고 있나요?",
+"10-09":"실패를 세지 않을 만큼 도전하고 있나요?",
+"10-10":"크게 도전해서 크게 배운 적이 있나요?",
+"10-11":"작은 성공들이 서로 이어지고 있나요?",
+"10-12":"서두르지 않고 성장하는 과정을 즐기고 있나요?",
+"10-13":"빚을 내 투자하고 있진 않나요?",
+"10-14":"반복되는 실수가 있다면 금액부터 줄였나요?",
+"10-15":"틀린 가정을 인정하고 방향을 바꿨나요?",
+"10-16":"시장이 좋게 보는지 물어보았나요?",
+"10-17":"오늘 무엇이 나를 손절하게, 사게 만들었나요?",
+"10-18":"좌절에서 다시 일어선 경험은?",
+"10-19":"역경 뒤에 다시 일어난 적이 있나요?",
+"10-20":"실패라 여긴 일이 정말 실패였나요?",
+"10-21":"실패 후 나는 어떻게 대처하나요?",
+"10-22":"실패한 날에도 지키는 작은 질서는?",
+"10-23":"힘들 때 마음을 기대는 곳은 어디인가요?",
+"10-24":"실수가 두려워 피한 일이 있나요?",
+"10-25":"10년 뒤에도 이 일이 중요할까요?",
+"10-26":"힘든 일도 큰 그림의 한 조각인가요?",
+"10-27":"부끄러운 순간이 나를 어떻게 바꿨나요?",
+"10-28":"지금 겪는 거친 훈련은 무엇인가요?",
+"10-29":"성장이 멈췄다고 느낀 적이 있나요?",
+"10-30":"고난 뒤에 무엇을 배웠나요?",
+"10-31":"같은 실수를 반복하고 있진 않나요?",
+"11-01":"벽에 막혔을 때 떠오른 통찰이 있나요?",
+"11-02":"배운 대로만 될 거라 기대하고 있진 않나요?",
+"11-03":"내가 아는 것은 얼마나 될까요?",
+"11-04":"돈·시간·체력 중 무엇이 핑계가 되고 있나요?",
+"11-05":"내 시나리오가 틀렸을 때 대응책이 있나요?",
+"11-06":"남의 시나리오에 기대고 있진 않나요?",
+"11-07":"자기만족형 공부를 하고 있진 않나요?",
+"11-08":"질문하며 읽고 있나요?",
+"11-09":"최근 읽은 책을 내 관점으로 바꿔 보았나요?",
+"11-10":"한 권의 책만 맞다고 믿고 있진 않나요?",
+"11-11":"과열의 시작을 알아볼 수 있나요?",
+"11-12":"팔고 나서 더 오른다고 아쉬워하고 있진 않나요?",
+"11-13":"보는 눈과 수익 내는 실력을 구분하고 있나요?",
+"11-14":"최근 조급했던 순간은 언제였나요?",
+"11-15":"대장주를 미리 알아볼 눈을 기르고 있나요?",
+"11-16":"변동성에 대비해 무엇을 준비하고 있나요?",
+"11-17":"한쪽만 보고 있진 않나요?",
+"11-18":"최근 결정의 근거는 무엇이었나요?",
+"11-19":"수익·손실 종목을 정리해 본 적이 있나요?",
+"11-20":"나의 강점과 약점은 무엇인가요?",
+"11-21":"할 만하다 싶을 때 기본을 다지고 있나요?",
+"11-22":"힘든 일을 즐겁게 할 방법은?",
+"11-23":"내일을 위해 오늘 미리 해둘 일 하나는?",
+"11-24":"한발 앞서 생각하고 있는 분야가 있나요?",
+"11-25":"처음 가정이 맞는지 확인하고 있나요?",
+"11-26":"새롭게 보이기 시작한 것이 있나요?",
+"11-27":"의견을 바꾸기 어려운 이유는?",
+"11-28":"안 맞는다고 계속 다른 걸 찾고 있진 않나요?",
+"11-29":"일부러 안 보려는 것이 있나요?",
+"11-30":"지금 노력이 결실을 맺으리라 믿나요?",
+"12-01":"오늘 무엇을 내려놓고 무엇을 채우겠어요?",
+"12-02":"바꿀 수 없는 조건을 받아들이고 있나요?",
+"12-03":"내 말이 잔소리가 되고 있진 않나요?",
+"12-04":"오늘 나에게 던질 질문과 그 답은?",
+"12-05":"질문할 때 내 생각을 갖고 묻나요?",
+"12-06":"이유를 묻지 않고 안 된다고 하진 않나요?",
+"12-07":"최근 읽은 책을 내 것으로 만들었나요?",
+"12-08":"무엇을 위해 성장하고 싶나요?",
+"12-09":"지금까지와 다른 생각 하나를 떠올린다면?",
+"12-10":"사고 판 다음을 미리 생각하나요?",
+"12-11":"이미 지난 일에 매달리고 있진 않나요?",
+"12-12":"질문을 이어 가며 공부하고 있나요?",
+"12-13":"어제의 투자를 오늘의 나는 뭐라고 할까요?",
+"12-14":"내가 찾는 진짜 보물섬은 무엇인가요?",
+"12-15":"배운 것을 내 방식으로 바꾸고 있나요?",
+"12-16":"오늘의 질문과 투자 아이디어는?",
+"12-17":"자신감이 떨어졌다면 그 이유는?",
+"12-18":"어제보다 발전했나요?",
+"12-19":"투자를 위해 어떤 노력을 하고 있나요?",
+"12-20":"한 번 잘못 샀다고 좌절하고 있진 않나요?",
+"12-21":"힘들었던 일에서 찾은 기회는?",
+"12-22":"다르게 살고 싶다면 무엇을 바꾸겠어요?",
+"12-23":"지금 버티고 있는 것은 무엇인가요?",
+"12-24":"오늘 찾아 나설 좋은 일은?",
+"12-25":"지금 느끼는 감정을 솔직히 적는다면?",
+"12-26":"막힌 일에서 잠시 물러나 보면 어떻게 보이나요?",
+"12-27":"변화에 잘 적응하는 편인가요?",
+"12-28":"오늘 하루를 성공이라고 말할 수 있나요?",
+"12-29":"가정이 틀렸을 때의 대책은?",
+"12-30":"고집하고 있는 판단이 있나요?",
+"12-31":"내년이 달라지려면 어떤 시간을 보내야 할까요?"
+};
+/* 공유받은 사람용: 주식 이야기를 일상 이야기로 바꾼 날들 [제목, 요지, 질문] */
+const LIFE={"01-06":["준비","준비된 사람에게는 늘 보던 일상에서도 새로운 기회와 아이디어가 보인다.","매일 쓰는 것들 속에서 새롭게 발견한 게 있나요?"],"01-08":["지피지기","나를 모른 채 덤비면 무모할 뿐이다. 내 수준과 상황부터 알고 나아가자.","지금 내가 가장 잘하는 것과 부족한 것은 무엇인가요?"],"01-12":["준비된 내일","지금 가진 것에만 기대지 말고, 내일을 위한 준비를 하나씩 해 두자.","1년 뒤의 나를 위해 지금 준비하고 있는 것은?"],"01-18":["3단계","남에게 배우는 단계, 함께 하는 단계를 지나 스스로 즐기는 단계로 간다.","요즘 배우는 일에서 나는 어느 단계에 있나요?"],"02-12":["납득할 만한 노력","스스로 인정할 만큼 노력했다면 결과가 아쉬운 날에도 흔들리지 않고 다시 시작할 수 있다.","결과와 상관없이 스스로 납득할 만큼 노력한 일은?"],"02-13":["설렘과 두려움","설렘은 앞으로 밀어주고 두려움은 신중하게 만든다. 둘의 균형을 잡자.","요즘 나는 설렘과 두려움 중 어느 쪽에 더 끌리나요?"],"03-04":["함께 잘되기","가장 가까운 사람이 잘되도록 돕자. 그 사람이 다시 나를 끌어올린다.","가까운 사람이 잘되도록 내가 도울 수 있는 일은?"],"03-05":["나누는 마음","가진 것을 주변과 나눌 줄 아는 마음이 진짜 넉넉한 사람의 그릇이다.","가진 것을 나눈 경험이 있나요?"],"03-11":["가화만사성","모든 일의 바탕은 편안한 마음이고, 그 마음의 바탕은 편안한 가정이다. 쉬는 날엔 가족에게 집중하자.","쉬는 날 가족에게 집중하고 있나요?"],"03-13":["나만의 속도","남에게 보여주기 위한 삶 말고 나를 채우는 삶을 살자. 실수도 내 길의 일부다.","남에게 보여주기 위해 하고 있는 일은 없나요?"],"03-17":["진짜 조언","진짜 조언은 나를 위한 말이고, 조종하는 말에는 상대의 이익이 섞여 있다. 힘들어도 벗어나자.","나를 위한 조언과 나를 조종하는 말을 구분하고 있나요?"],"03-20":["의리","가까운 사이일수록 신세는 확실하게 갚자. 호의를 당연히 여기면 오래 가지 못한다.","가까운 사이일수록 신세를 잘 갚고 있나요?"],"04-01":["지금의 선택","같은 하루를 보내도 무엇을 고르느냐는 사람마다 다르다. 미래를 가르는 건 지금 내가 하는 선택이다.","오늘 내가 한 선택 중 가장 잘한 것은?"],"04-02":["배고픈 선택","배고플 때 장을 보면 필요 없는 걸 산다. 급하고 지칠 때는 큰 결정을 잠시 미루자.","급하고 지친 상태에서 결정한 일이 있나요?"],"04-04":["나만의 기준","기준이 없으면 매번 분위기에 휩쓸린다. 기준이 있어야 선택이 점점 나아진다.","분위기에 휩쓸려 결정한 적이 있나요?"],"04-07":["돌아보기","내 판단으로 한 일이어야 돌아볼 때 배울 게 있다. 남이 시켜서 한 일은 돌아봐도 남는 게 적다.","최근 내 판단으로 한 일을 돌아보면 무엇이 보이나요?"],"04-08":["삶의 원칙","모든 게 쉬워 보이면 기준이 없는 것이고, 어렵다면 기준을 세우는 중이다. 꾸준한 사람에겐 반드시 원칙이 있다.","꾸준히 지키는 나의 원칙은 무엇인가요?"],"04-09":["지키는 하루","매일 잘 될 수는 없어도 매일 원칙을 지킬 수는 있다. 원칙을 지킨 날은 결과가 아쉬워도 떳떳하다.","오늘 나와의 약속을 지켰나요?"],"04-10":["그만두는 기준","무엇을 시작할지보다 언제 멈출지 정해 두는 게 나를 지킨다.","멈춰야 할 때를 미리 정해 둔 일이 있나요?"],"04-11":["원칙이 지켜주는 것","원칙이 있으면 조금 느릴 수는 있어도 크게 무너지진 않는다.","원칙 덕분에 큰 실수를 피한 적이 있나요?"],"04-12":["지키는 삶","무리해서 많이 얻기보다 가진 것을 지키는 게 오래 가는 길이다.","요즘 지키고 싶은 소중한 것은 무엇인가요?"],"04-13":["감당할 만큼","감당할 수 있는 만큼만 하면 실패도 배움이 된다. 처음 배우는 일은 특히 작게 시작하자.","지금 하는 일은 감당할 수 있는 수준인가요?"],"04-14":["나의 판단","모두가 한쪽으로 몰려도 내 생각이 다르면 그 이유를 끝까지 따져 보자.","남과 다르게 판단해 본 적이 있나요?"],"04-15":["외로운 선택","남들 따라 하면 마음은 편하지만 내 생각은 없다. 외로워도 내 판단으로 고르자.","외로워도 내 판단으로 고른 일이 있나요?"],"04-16":["미련 버리기","끝난 일에 매달리기보다 끝났다고 선을 긋는 용기가 필요하다.","이미 끝났는데 미련이 남은 일이 있나요?"],"04-17":["기분 말고 기준","기준이 없으면 기분에 따라 움직이게 되고, 그건 운에 맡기는 것과 같다.","기분에 따라 행동하고 후회한 날이 있었나요?"],"04-20":["나만의 관점","원칙은 정답이 하나인 공식이 아니라, 상황마다 다르게 풀어낼 수 있는 나만의 관점이다.","나만의 삶의 관점을 한 문장으로 적는다면?"],"04-21":["나의 철학","같은 일도 내 관점으로 다시 해석하는 것, 그게 나만의 철학이다.","요즘 겪은 일을 나는 어떻게 해석하나요?"],"04-22":["지키는 것이 먼저","얻는 것보다 지키는 것이 먼저다. 결정할 때 잃지 않을 것부터 생각하자.","결정할 때 잃지 말아야 할 것을 먼저 생각하나요?"],"04-23":["성공의 비결","오래 잘하는 사람들이 공통으로 꼽는 비결은 원칙이다. 내가 지킬 원칙을 하나씩 쌓아 가자.","내가 쌓아 가고 있는 원칙은 몇 개인가요?"],"04-24":["원칙이 없으니","하루하루가 비슷한데도 원칙이 없으면 매번 새롭고 어렵게 느껴진다.","매번 같은 고민을 반복하고 있진 않나요?"],"04-26":["운과 실력","한 번 잘된 건 운일 수 있다. 다만 그 결과가 계속 반복된다면 그건 실력이다.","최근 잘된 일은 운이었나요, 실력이었나요?"],"04-28":["흔들리지 않는 하루","오래 가는 사람들은 주변이 흔들려도 자기 계획에 충실하다.","주변이 흔들릴 때도 내 계획을 지키고 있나요?"],"04-29":["선택이 확신이 될 때","충분히 따져보고 고른 길이라면, 잠깐 어려울 때가 오히려 버틸 이유가 된다.","잠깐 어렵다고 포기할 뻔한 일이 있나요?"],"04-30":["나침반","일이 복잡해 판단이 흐려질수록 원칙이 길을 알려주는 나침반이 된다.","판단이 흐려질 때 나를 잡아주는 원칙은?"],"05-04":["소중한 건강","건강은 배터리처럼 조금씩 닳는다. 방전되기 전에 충전하고, 지킬 수 있을 때 지키자.","내 건강 배터리는 지금 몇 퍼센트인가요?"],"05-06":["하루 5분","5분이라도 매일 움직이자. 건강은 루틴으로 관리해야 오래 간다.","매일 5분이라도 하는 운동이 있나요?"],"05-12":["정돈된 이불","아침에 이불을 개는 것 같은 작은 습관이 하루를 정돈된 흐름으로 시작하고 끝내게 해준다.","하루를 정돈하는 나의 작은 습관은?"],"05-15":["인생은 길다","장거리 운전에 휴게소가 필요하듯, 일도 육아도 쉬는 시간을 함께 두자.","최근 나에게 휴게소 같은 시간이 있었나요?"],"05-27":["생각한 대로","마음을 편하게 다잡고, 순간의 기분이 아닌 미리 생각한 대로 움직이자.","순간의 기분대로 행동한 적이 있나요?"],"05-29":["마라톤","삶은 속도보다 꾸준함이다. 힘들면 숨을 돌리고 다시 달릴 힘을 모으면 된다.","힘들 때 숨을 고르는 나만의 방법은?"],"06-04":["멀리 보기","마음이 흔들릴 때는 눈앞의 결과만 쫓고 있는 건 아닌지 돌아보자.","눈앞의 결과만 쫓고 있진 않나요?"],"06-11":["독기 말고 근성","짧게는 독기로 버틸 수 있지만, 오래 가는 일에는 근성이 필요하다.","독기가 아니라 근성으로 하고 있는 일은?"],"06-12":["마라톤","배움은 전력질주가 아니다. 인내심과 지속성으로 조금씩 나아가는 것이다.","배우는 일을 전력질주처럼 하고 있진 않나요?"],"06-18":["반복의 힘","하루도 빠짐없이 1년을 해 보면 보이지 않던 흐름이 보이기 시작한다.","꾸준히 해서 새로 보이게 된 것이 있나요?"],"06-19":["믿음","누구나 단번에 잘할 수는 없다. 다만 짧게라도 제대로 집중해 보면 보는 눈이 달라진다.","짧게라도 제대로 집중해 본 일이 있나요?"],"06-20":["배움의 결과","꾸준히 쌓고 몸에 익히면 어느 순간 남보다 먼저 알아보는 눈이 생긴다.","꾸준히 익혀서 알아보는 눈이 생긴 분야는?"],"06-25":["버티는 연습","지겨울 만큼 오래 반복해야 그 일에서 자유로워질 준비가 된다.","지겹지만 버티며 반복하고 있는 일이 있나요?"],"06-28":["기다림과 인내","오래 노력했는데 결과가 없다고 자책하지 말자. 배운 걸 내 것으로 만드는 것도 과정이다.","노력했는데 결과가 없다고 자책하고 있진 않나요?"],"07-01":["의존","남의 말에 기대는 순간 내 판단은 사라진다. 남에게 기대는 결정을 가장 경계하자.","남의 말만 믿고 결정한 적이 있나요?"],"07-02":["시간의 가치","흘려보낸 시간은 돌아오지 않는다. 내 시간을 의미 있는 곳에 쓰자.","내 시간은 지금 어디에 쓰이고 있나요?"],"07-03":["나를 키우는 시간","가장 아끼고 가꿔야 할 대상은 나 자신이다. 배우고 성장하는 데 쓰는 시간을 아까워하지 말자.","나 자신을 위해 쓰고 있는 시간은?"],"07-04":["소중한 쓰임","애써 모은 것은 아끼되, 소중한 사람과 기쁘게 쓸 줄도 알아야 한다.","요즘 기쁘게 쓰고 싶은 곳이 있나요?"],"07-06":["해내는 힘","빠르게 판단하고, 실제로 시작하고, 욕심을 누르며 끝까지 마무리하는 훈련이 필요하다.","판단·시작·마무리 중 가장 약한 것은?"],"07-07":["아는 만큼","잘 모르는 일에 뛰어들면 운에 맡기는 것뿐이다. 아는 것부터 하자.","잘 모르고 뛰어든 일이 있나요?"],"07-08":["운과 실력","운은 분명 있다. 다만 그게 운이었는지 실력이었는지는 스스로 구분할 수 있어야 한다.","최근 잘된 일을 운과 실력으로 나눠 본다면?"],"07-09":["스스로 찾는 힘","스스로 길을 찾는 힘이 있어야 오래 간다. 놓칠까 봐 조급해하지 말자.","스스로 답을 찾는 힘을 기르고 있나요?"],"07-10":["나에게 맞는 방식","나이와 상황에 따라 맞는 방식은 다르다. 옷처럼 나에게 맞는 방법을 찾자.","지금 나에게 맞는 생활 방식은 무엇인가요?"],"07-11":["나의 스타일","잘된 일과 잘 안된 일을 나란히 놓고 공통점을 찾으면 내 스타일이 보인다.","잘된 일과 안된 일의 공통점은?"],"07-12":["냉정한 판단","좋아하는 마음이 판단을 흐리지 않게 하자. 중요한 결정일수록 한 걸음 떨어져 보자.","좋아하는 마음 때문에 판단이 흐려진 적이 있나요?"],"07-13":["객관적인 판단","느낌이 아니라 사실과 근거로 판단하자. 객관적으로 보려는 노력이 실수를 줄인다.","느낌이 아닌 사실로 판단하고 있나요?"],"07-14":["여러 가능성","지혜로운 사람은 미래를 맞히는 사람이 아니라, 여러 가능성을 열어두고 준비하는 사람이다.","여러 가능성을 열어두고 준비하고 있나요?"],"07-16":["보는 눈","소문과 사실을 구분하는 눈이 있어야 좋은 말도 쓸모가 있다. 그 눈은 경험으로 생긴다.","소문과 사실을 구분하고 있나요?"],"07-17":["오래 가는 조건","꾸준히 할 시간, 멈출 줄 아는 용기, 잘될 때의 절제. 이 세 가지가 오래 가는 조건이다.","꾸준함, 용기, 절제 중 무엇이 부족한가요?"],"07-18":["과정 보기","한 번에 잘되길 바라지 말자. 쌓아 가는 동안 잠시 막히는 건 당연하다고 보고 전체 흐름을 보자.","잠시 막힌 일에 흔들리고 있진 않나요?"],"07-19":["아침 습관","매일 아침 세상 소식을 보는 작은 습관이 쌓이면 세상을 이해하는 힘이 생긴다.","매일 아침 하는 작은 습관이 있나요?"],"07-20":["여유","당장 쓸 수 있는 여유가 있어야 갑작스러운 일에도 흔들리지 않는다.","갑작스러운 일에 대비한 여유는 충분한가요?"],"07-22":["쉬는 것도 일","할 게 없는 날 억지로 뭔가 하다 보면 지친다. 쉬는 날은 쉬는 것도 중요하다.","쉬는 날 제대로 쉬고 있나요?"],"07-23":["사람이 모이는 곳","사람이 몰리는 곳을 보면 요즘 세상의 관심이 보인다.","요즘 주변 사람들이 관심 갖는 것은?"],"07-24":["만능은 없다","한 번 통한 방법이 언제나 통하진 않는다. 상황이 바뀌면 방법도 바꾸자.","예전 방법을 고집하고 있진 않나요?"],"07-25":["한발 앞서","남이 다 한 뒤에 따라가면 늦다. 소식을 들으면 그다음을 먼저 떠올리는 연습을 하자.","소식을 듣고 그다음을 떠올려 본 적이 있나요?"],"07-26":["대비책","도전할수록 위험도 크다. 무엇을 하든 대비책을 먼저 정하자.","새로운 일을 하기 전에 대비책을 세우나요?"],"07-27":["이유 있는 결정","중요한 결정일수록 이유가 분명해야 한다. 여러 면을 함께 보자.","최근 결정의 이유를 분명히 말할 수 있나요?"],"07-28":["변화","삶에 변화는 당연하다. 두려워하기보다 이해하고 받아들이고 활용하자.","변화를 두려워하고 있진 않나요?"],"07-31":["잘될 때","잘될 때 더 욕심을 낼지, 멈출지 고민이 판단을 흔든다. 미리 정한 기준을 따르자.","잘될 때도 미리 정한 기준을 지키나요?"],"08-03":["이유","결과만 보고 하는 일은 오래 못 간다. 결과 너머의 이유가 있어야 계속할 수 있다.","결과 너머 내가 이 일을 하는 이유는?"],"08-09":["담담하게","좋은 일에 들뜨지 말고, 나쁜 일에 무너지지 말자. 둘 다 담담하게.","좋은 일과 나쁜 일에 담담한가요?"],"08-10":["평생의 일","삶은 하루 이틀로 끝나지 않는다. 하루 결과에 일희일비하지 말자.","하루 결과에 일희일비하고 있진 않나요?"],"08-11":["반복의 역사","비슷한 일은 반복된다. 지난 경험을 기억하면 다음에 올 일을 미리 준비할 수 있다.","반복되는 일 중 기억해 둘 것은?"],"08-17":["24시간 내내","무언가를 제대로 하려면 그것이 일상의 생각 속에 자연스럽게 자리 잡아야 한다.","내 일상에 자연스럽게 자리 잡은 좋은 습관은?"],"08-20":["진짜 넉넉함","가진 게 많아지는 건 중요하지만, 그것이 삶의 전부가 될 수는 없다.","가진 것 외에 내 삶에서 중요한 것은?"],"08-21":["일의 가치","일의 소중함을 아는 사람은 일하며 쌓이는 지식과 경험도 자산으로 여긴다.","일하며 쌓인 나의 자산은 무엇인가요?"],"08-25":["위험 관리","무리한 일에 나를 몰아넣지 말고, 실수를 줄이는 계획부터 세우자.","무리하고 있는 일은 없나요?"],"08-26":["계속 배우기","세상은 계속 변한다. 주변을 보며 끊임없이 배우는 자세가 필요하다.","요즘 새로 배우고 있는 것은?"],"08-30":["지피지기면 백전백승","상대와 나를 제대로 알면 위태롭지 않다. 상황도, 내 약점도 알고 들어가자.","내 약점을 알고 대비하고 있나요?"],"09-03":["성공의 의미","돈, 명예, 지위는 남이 보는 성공일 수 있다. 내가 생각하는 성공은 무엇인지 물어보자.","내가 생각하는 성공은 무엇인가요?"],"09-25":["꾸준한 성장","좋은 결과는 단기간에 오지 않는다. 꾸준히 배우는 게 기본이다.","단기간 성과만 기대하고 있진 않나요?"],"09-28":["진정한 성공","진짜 성공은 쌓인 결과보다 멈추지 않는 배움과 성장에서 온다.","나를 키우고 있는 것은 무엇인가요?"],"10-12":["기회","당장 큰 결과를 노리고 서두르지 말자. 꾸준히 성장하는 과정 자체가 소중한 기회다.","서두르지 않고 성장하는 과정을 즐기고 있나요?"],"10-13":["무리하지 않기","감당 못 할 무리는 하지 말자. 무리하다 넘어지면 생활이 무너지고 다시 도전할 힘도 잃는다.","감당하기 어려운 무리를 하고 있진 않나요?"],"10-14":["괴로워하기 전에","같은 실수가 반복되어 지칠 때는 자책보다 먼저 부담을 줄이고 숨을 돌리자.","반복되는 실수가 있다면 부담부터 줄였나요?"],"10-15":["실수의 인정","아니면 아닌 것이다. 생각이 틀렸으면 바로 인정하고 방향을 바꾸자.","틀린 생각을 인정하고 방향을 바꿨나요?"],"10-16":["다른 눈으로","내가 틀릴 수 있다는 걸 염두에 두자. 내 생각만이 아니라 남의 눈으로도 보자.","다른 사람의 눈으로 내 상황을 본다면?"],"10-17":["흔들릴 때","남들과 비교하며 조급해질 때는 하루를 돌아보자. 무엇이 나를 흔들었는지 알면 성장한다.","오늘 나를 흔든 것은 무엇이었나요?"],"10-18":["좌절","살다 보면 누구나 한계에 부딪히고 큰 실패도 겪는다. 다시 일어서는 것만으로도 대단한 일이다.","좌절에서 다시 일어선 경험은?"],"10-19":["승패병가지상사","이기고 지는 건 흔한 일이다. 삶도 수많은 역경을 겪고 다시 일어나는 일이다.","역경 뒤에 다시 일어난 적이 있나요?"],"10-22":["작은 것부터","힘든 날에도 정돈된 방 같은 작은 질서가 내일을 다시 시작하게 해준다. 작은 것부터.","힘든 날에도 지키는 작은 질서는?"],"11-04":["핑계","돈이 없으면 아끼거나 벌고, 시간이 없으면 핸드폰을 줄이고, 체력이 없으면 운동하자. 핑계보다 방법을 찾자.","돈·시간·체력 중 무엇이 핑계가 되고 있나요?"],"11-05":["나의 계획","계획은 세우되 그대로 될 거라고 믿지는 말자. 틀어졌을 때 어떻게 할지가 더 중요하다.","계획이 틀어졌을 때 대안이 있나요?"],"11-07":["배움의 의미","배움은 시간을 채우는 게 아니라 이해하려는 것이다. 자기 만족형 공부는 경계하자.","시간만 채우는 공부를 하고 있진 않나요?"],"11-11":["들뜬 분위기","모두가 들떠 있을 때 한 걸음 물러서 보면 보이지 않던 것이 보인다.","들뜬 분위기에 휩쓸린 적이 있나요?"],"11-12":["아쉬움 내려놓기","지나간 선택을 두고 아쉬워하지 말자. 남은 것으로 다음을 준비하면 된다.","지나간 선택을 아쉬워하고 있진 않나요?"],"11-13":["아는 것과 하는 것","아는 것과 해내는 것은 다르다. 안다는 데 만족하지 말고 직접 해 보자.","알면서도 아직 실천하지 못한 것은?"],"11-14":["조급함","조급함 자체가 준비가 부족하다는 신호다. 부족함을 인정하고 천천히 쌓아가자.","최근 조급했던 순간은 언제였나요?"],"11-15":["미리 보는 눈","일이 벌어진 뒤가 아니라, 벌어지기 전에 알아보는 눈을 기르자.","미리 알아차려서 잘 넘긴 일이 있나요?"],"11-16":["미리 대비하기","매일 세상 소식을 보며 흐름을 익히면 갑작스러운 변화에 미리 대비할 수 있다.","변화에 대비해 무엇을 준비하고 있나요?"],"11-17":["열린 눈","경주마처럼 한쪽만 보지 말고 넓게 보자. 그래야 일이 왜 막혔는지 보인다.","한쪽만 보고 있진 않나요?"],"11-19":["자기 자신","잘된 일과 안된 일을 나란히 정리하면 내가 어디에 강하고 약한지 알게 된다.","잘된 일과 안된 일을 정리해 본 적이 있나요?"],"12-10":["어떻게 될까?","무엇을 하든 '그다음엔 어떻게 될까?'를 먼저 물으면 결정이 편해진다.","결정한 다음을 미리 생각하나요?"],"12-12":["꼬리를 무는 질문","하나에서 멈추지 말고 '왜?'를 이어 가자. 질문이 이어질수록 깊어진다.","요즘 꼬리를 물고 이어진 질문이 있나요?"],"12-13":["역사는 반복된다","새로운 일을 과거의 비슷한 경험과 연결할 수 있어야 확신을 갖고 나아갈 수 있다.","어제의 나를 오늘의 나는 뭐라고 할까요?"],"12-16":["자신의 생각","정보가 넘칠수록 중심을 잡자. 질문을 통해 정보를 내 생각과 아이디어로 바꾸자.","오늘 떠오른 질문과 아이디어는?"],"12-17":["자신감이 떨어진 이유","자신감이 떨어지면 이유를 물자. 최근의 실수인지, 피곤함인지, 막연한 불안인지.","자신감이 떨어졌다면 그 이유는?"],"12-19":["노력의 과정","무엇이든 잘하려면 고된 노력이 필요하다. 결과만큼 그 과정에서 배우고 성장하는 게 중요하다.","요즘 가장 애쓰고 있는 일은?"],"12-30":["새로운 처방","판단이 틀렸다고 보이면 체면 때문에 고집하지 말고 빨리 방향을 바꾸자.","고집하고 있는 판단이 있나요?"]};
+function dly(md){const l=!workOK&&LIFE[md];return l?[l[0],l[1]]:DAILY[md];}
+function qOf(md){const l=!workOK&&LIFE[md];return l?l[2]:Q[md];}
+
+let qOff=0;
+function mdOf(ds){return ds.slice(5);}
+let calOpen=false;
+let logDate=todayStr(), logSub="day", stockSub="sched", weekOff=0, diaryT=null;
+function dateOfMs(ms){return todayStr(new Date(ms));}
+function running(){return S.logs.find(l=>!l.e);}
+function startCat(c){const now=Date.now();const r=running();if(r){r.e=now;if(r.cat===c){save();render();toast(`${c} 기록을 멈췄어요`);return;}}
+  S.logs.push({id:uidGen(),cat:c,s:now,e:null});save();render();toast(`${c} 시작`);}
+function stopRun(){const r=running();if(r){r.e=Date.now();save();render();toast("기록을 멈췄어요");}}
+function minsFor(date){const o={};S.logs.forEach(l=>{if(dateOfMs(l.s)!==date)return;const e=l.e||Date.now();o[l.cat]=(o[l.cat]||0)+Math.max(0,(e-l.s)/6e4);});return o;}
+function sumM(o){return Object.values(o).reduce((a,b)=>a+b,0);}
+function hm(m){m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?`${h}시간${r?" "+r+"분":""}`:`${r}분`;}
+function hShort(m){return (m/60).toFixed(m>=600?0:1)+"h";}
+function tStr(ms){const d=new Date(ms);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");}
+function dayRec(date){return S.days[date]||{};}
+function setDay(date,patch){S.days[date]=Object.assign({},S.days[date],patch);save();}
+function routineKey(sh){return S.routines[sh]?sh:(sh==="비"?"휴":sh);}
+function routineFor(date){const k=routineKey(shiftOf(date));return {k,items:(S.routines[k]||[]).filter(Boolean)};}
+function matchRec(r,ds){const d=parseD(ds);
+  if(r.freq==="daily")return true;
+  if(r.freq==="weekly")return (r.dows||[]).includes(d.getDay());
+  if(r.freq==="monthly")return d.getDate()===Number(r.dom);
+  if(r.freq==="shift")return shiftOf(ds)===r.shift;
+  return false;}
+function recLabel(r){
+  if(r.freq==="daily")return "매일";
+  if(r.freq==="weekly")return "매주 "+(r.dows||[]).slice().sort().map(i=>WD[i]).join("·");
+  if(r.freq==="monthly")return `매월 ${r.dom}일`;
+  if(r.freq==="shift")return `${r.shift} 근무 날마다`;
+  return "";}
+function genRecurring(){let ch=false;const t=todayStr();const until=addDays(t,6);
+  (S.recur||[]).forEach(r=>{const from=r.last&&r.last>=t?addDays(r.last,1):t;
+    for(let ds=from;ds<=until;ds=addDays(ds,1)){
+      if(matchRec(r,ds)&&!S.tasks.some(x=>x.rid===r.id&&x.due===ds)){
+        S.tasks.push({id:uidGen(),rid:r.id,title:r.title,imp:!!r.imp,urg:!!r.urg,due:ds,memo:"",done:false,created:t});ch=true;}}
+    if(r.last!==until){r.last=until;ch=true;}});
+  if(ch)save();}
+function todayQuote(){const q=(S.quotes||[]).filter(Boolean);if(!q.length)return "";
+  const d=parseD(todayStr());const doy=Math.round((d-new Date(d.getFullYear(),0,1))/864e5);return q[doy%q.length];}
+function weekStart(ds){const d=parseD(ds);return addDays(ds,-((d.getDay()+6)%7));}
+function weekStats(ws){const days=[...Array(7)].map((_,i)=>addDays(ws,i));const mins={};let ex=0;const moods=[];const exBy={};let dia=0,lg=0;
+  days.forEach(ds=>{const m=minsFor(ds);for(const k in m)mins[k]=(mins[k]||0)+m[k];const r=dayRec(ds);
+    if(r.ex){ex++;const s=routineKey(shiftOf(ds))||"-";exBy[s]=(exBy[s]||0)+1;}if(r.mood)moods.push(r.mood);if(r.diary)dia++;if(sumM(m))lg++;});
+  const we=days[6];const done=S.tasks.filter(x=>x.done&&x.doneAt&&x.doneAt>=ws&&x.doneAt<=we).length;
+  return {days,mins,ex,exBy,diary:dia,logged:lg,mood:moods.length?moods.reduce((a,b)=>a+b,0)/moods.length:null,done,total:sumM(mins)};}
+
+function stackBar(mins){const tot=sumM(mins);if(!tot)return `<div class="sbar empty-bar"></div>`;
+  return `<div class="sbar" role="img" aria-label="시간 비율">${cats().filter(([c])=>mins[c]).map(([c,col])=>`<span style="flex:${mins[c]};background:${col}" title="${c} ${hm(mins[c])}"></span>`).join("")}</div>`;}
+
+function vLog(){
+  return head(logSub==="day"?"하루 기록":"주간 돌아보기",logSub==="day"?"시간 · 일기 · 운동":"이번 주에 뭘 얼마나 했는지")+
+  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간 돌아보기</button></div>
+  ${logSub==="day"?vDay():vWeek()}</div>`;
+}
+/* 근무 시간 기본 기록: 주간 06:00–19:30, 야간 18:00–다음날 07:30 */
+const WORK_HOURS={"주":[[6,0],[19,30],0],"야":[[18,0],[7,30],1]};
+function fixNightStart(){let ch=false;(S.logs||[]).forEach(l=>{if(!l.auto)return;const d=new Date(l.s);if(d.getHours()===19&&d.getMinutes()===30&&l.e-l.s===12*36e5){d.setHours(18,0,0,0);l.s=d.getTime();ch=true;}});return ch;}
+function ensureWorkLog(ds){
+  if(ds>todayStr())return false;S.autoWork=S.autoWork||{};if(S.autoWork[ds])return false;
+  const w=WORK_HOURS[shiftOf(ds)];if(!w)return false;
+  const b=parseD(ds);const st=new Date(b);st.setHours(w[0][0],w[0][1],0,0);const en=new Date(b);en.setDate(en.getDate()+w[2]);en.setHours(w[1][0],w[1][1],0,0);
+  S.logs.push({id:uidGen(),cat:"업무",s:st.getTime(),e:en.getTime(),auto:true});S.autoWork[ds]=shiftOf(ds);return true;}
+function vDay(){
+  if(workOK&&ensureWorkLog(logDate))save();
+  const t=todayStr();const isT=logDate===t;const d=parseD(logDate);const sh=shiftOf(logDate);
+  const mins=minsFor(logDate);const r=running();const rec=dayRec(logDate);
+  const entries=S.logs.filter(l=>dateOfMs(l.s)===logDate).sort((a,b)=>a.s-b.s);
+  const catBtns=cats().map(([c,col])=>{const on=r&&r.cat===c&&isT;
+    return `<button class="catbtn ${on?"on":""}" data-act="startCat" data-c="${c}" style="--cc:${col}" aria-pressed="${!!on}">
+      <span class="cdot"></span><span class="cname">${c}</span><span class="ctime mono">${on?hm((Date.now()-r.s)/6e4):mins[c]?hm(mins[c]):""}</span></button>`;}).join("");
+  return `
+  <div class="row" style="justify-content:space-between">
+    <button aria-label="전날" data-act="logNav" data-v="-1">‹</button>
+    <div style="text-align:center"><h2>${d.getMonth()+1}/${d.getDate()} ${WD[d.getDay()]} ${sh?`<span class="sh-${sh}">· ${sh}</span>`:""}</h2>${isT?"":`<button class="ghost small" data-act="logNav" data-v="0">오늘로</button>`}</div>
+    <button aria-label="다음날" data-act="logNav" data-v="1" ${isT?"disabled":""}>›</button>
+  </div>
+  ${isT?`<section class="panel stack" style="gap:10px">
+    <div class="row" style="justify-content:space-between"><h3>지금 하는 일 <button class="ghost small" data-act="catEdit">+ 항목</button></h3>${r?`<button class="small" data-act="stopRun">멈춤</button>`:`<span class="note">누르면 시작, 다른 걸 누르면 바뀌어요</span>`}</div>
+    <div class="catgrid">${catBtns}</div>
+  </section>`:""}
+  <section class="panel stack" style="gap:8px">
+    <div class="row" style="justify-content:space-between"><h3>시간 쓴 곳</h3><span class="mono small muted">합계 ${hm(sumM(mins))}</span></div>
+    ${stackBar(mins)}
+    <div class="legend">${cats().map(([c,col])=>`<button class="lg lgbtn" data-act="logCat" data-c="${esc(c)}"><span class="cdot" style="background:${col}"></span>${esc(c)} <b class="mono">${mins[c]?hm(mins[c]):"+"}</b></button>`).join("")}</div>
+    <p class="note" style="margin:0">항목을 누르면 한 시간을 적을 수 있어요. 아래 기록을 누르면 고칠 수 있어요.</p>
+    <div>${entries.length?entries.map(l=>`<div class="lrow" ${l.e?`data-act="editLog" data-id="${l.id}" style="cursor:pointer"`:""}><span class="cdot" style="background:${catColor(l.cat)}"></span><span class="mono small">${tStr(l.s)}–${l.e?tStr(l.e):"진행 중"}</span><span style="flex:1">${esc(l.cat)}${l.auto?' <span class="label">근무 기본값</span>':""}</span><span class="mono small muted">${hm(((l.e||Date.now())-l.s)/6e4)}</span>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
+    <div class="row" style="justify-content:flex-end"><button class="ghost small" data-act="catEdit">항목 관리</button><button class="small" data-act="addLog">+ 직접 추가</button></div>
+  </section>
+  <section class="panel stack" style="gap:10px">
+    <h3>하루 돌아보기</h3>
+    <label class="field"><span class="label">일기</span><textarea id="diary" rows="12" style="min-height:260px;line-height:1.7" placeholder="오늘 어땠는지 짧게 적어 보세요">${esc(rec.diary||"")}</textarea></label>
+    <div class="note" id="diaryState">${rec.diary?"저장돼 있어요":"쓰는 대로 저장돼요"}</div>
+  </section>`;
+}
+function vWeek(){
+  const ws=addDays(weekStart(todayStr()),weekOff*7);const lws=addDays(ws,-7);
+  const A=weekStats(ws),B=weekStats(lws);
+  const de=addDays(ws,6);const a=parseD(ws),b=parseD(de);
+  const diff=(x,y,unit,dec)=>{if(y==null||x==null)return "";const v=x-y;if(Math.abs(v)<(dec?0.05:0.5))return `<span class="dz">지난주와 같음</span>`;
+    return `<span class="${v>0?"dup":"ddown"}">${v>0?"▲":"▼"} ${dec?Math.abs(v).toFixed(1):Math.round(Math.abs(v))}${unit}</span>`;};
+  const maxM=Math.max(1,...cats().map(([c])=>Math.max(A.mins[c]||0,B.mins[c]||0)));
+  const tiles=[
+    ["끝낸 할 일",`${A.done}개`,diff(A.done,B.done,"개")],
+    ["기록한 날",`${A.logged}일`,diff(A.logged,B.logged,"일")],
+    ["일기 쓴 날",`${A.diary}일`,diff(A.diary,B.diary,"일")],
+    ["기록한 시간",hm(A.total),diff(A.total/60,B.total/60,"시간",true)]
+  ].map(([k,v,dd])=>`<div class="tile"><div class="label">${k}</div><div class="tv">${v}</div><div class="small">${dd||'<span class="dz">비교할 기록 없음</span>'}</div></div>`).join("");
+  const rows=cats().map(([c,col])=>{const x=A.mins[c]||0,y=B.mins[c]||0;
+    return `<div class="cmp"><div class="cmp-h"><span><span class="cdot" style="background:${col}"></span>${c}</span><span class="mono small">${hm(x)} <span class="muted">/ 지난주 ${hm(y)}</span></span></div>
+      <div class="cbar"><span style="width:${x/maxM*100}%;background:${col}"></span></div>
+      <div class="cbar last"><span style="width:${y/maxM*100}%;background:${col}"></span></div></div>`;}).join("");
+  const days=A.days.map(ds=>{const dd=parseD(ds);const s=shiftOf(ds);const r=dayRec(ds);const m=minsFor(ds);
+    return `<button class="wday ${ds===todayStr()?"today":""}" data-act="openDay" data-d="${ds}"><span class="small muted">${WD[dd.getDay()]}</span><span class="small sh-${s}">${s||"-"}</span>
+      <span class="minibar">${cats().filter(([c])=>m[c]).map(([c,col])=>`<i style="flex:${m[c]};background:${col}"></i>`).join("")}</span>
+      <span class="mono small">${sumM(m)?hShort(sumM(m)):"·"}</span><span class="small ${r.diary?"exy":"muted"}">${r.diary?"일기":"–"}</span></button>`;}).join("");
+  const diaries=A.days.filter(ds=>dayRec(ds).diary).map(ds=>{const dd=parseD(ds);const r=dayRec(ds);
+    return `<div class="lrow" style="align-items:flex-start"><span class="mono small" style="width:54px;flex:none">${dd.getMonth()+1}/${dd.getDate()} ${WD[dd.getDay()]}</span><span style="flex:1;min-width:0;overflow-wrap:anywhere">${esc(r.diary)}</span></div>`;}).join("");
+  const exBy=Object.entries(A.exBy).map(([k,v])=>`<span class="sh-${k}">${k}</span> ${v}일`).join(" · ");
+  return `
+  <div class="row" style="justify-content:space-between">
+    <button aria-label="지난주" data-act="weekNav" data-v="-1">‹</button>
+    <div style="text-align:center"><h2>${a.getMonth()+1}/${a.getDate()} – ${b.getMonth()+1}/${b.getDate()}</h2><div class="label">${weekOff===0?"이번 주":weekOff===-1?"지난주":Math.abs(weekOff)+"주 전"}</div></div>
+    <button aria-label="다음 주" data-act="weekNav" data-v="1" ${weekOff>=0?"disabled":""}>›</button>
+  </div>
+  <div class="tiles">${tiles}</div>
+  <section class="panel stack" style="gap:10px"><div class="row" style="justify-content:space-between"><h3>항목별 시간</h3><span class="note">진한 막대 이번 주 · 연한 막대 지난주</span></div>${rows}</section>
+  <section class="panel stack" style="gap:8px"><h3>요일별</h3><div class="wgrid">${days}</div></section>
+  <section class="panel stack" style="gap:4px"><h3>이번 주 일기</h3>${diaries||`<div class="empty">이 주에 쓴 일기가 없어요.</div>`}</section>`;
+}
+
+function quoteBlock(){
+  const ds=addDays(todayStr(),qOff);const md=mdOf(ds);const d=parseD(ds);const isT=!qOff;
+  const e=dly(md);const mine=(S.dailyMine||{})[md];
+  const qq=qOf(md);const ans=(S.dailyAns||{})[md];const res=(S.resolve||{})[ds]||"";
+  const sh=shiftOf(ds);const gist=e?e[1].replace(/\s*\(Claude가 쓴 날\)/,""):"";
+  return `<section class="morning">
+    <div class="m-date">
+      <div class="m-day">${d.getDate()}</div>
+      <div class="m-meta mono">${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}<br>${WD[d.getDay()]}요일${sh?` · <span class="sh-${sh}">${sh}</span>`:""}</div>
+      <div class="m-nav"><button class="ghost small" data-act="qNav" data-v="-1" aria-label="전날">‹</button>${isT?"":`<button class="ghost small" data-act="qNav" data-v="0">오늘</button>`}<button class="ghost small" data-act="qNav" data-v="1" aria-label="다음날">›</button></div>
+    </div>
+    ${e?`<h2 class="m-title">${esc(e[0])}</h2><p class="m-gist">${esc(gist)}</p>`:`<p class="m-gist muted">이 날짜 글귀는 아직 없어요.</p>`}
+    ${mine?`<p class="qmine">${esc(mine)}</p>`:""}
+    <label class="m-res"><span class="label">${isT?"오늘의 각오":"이날의 각오"}</span>
+      <input id="resolve" data-d="${ds}" value="${esc(res)}" placeholder="오늘 하루, 이것만은 지킨다" autocomplete="off"></label>
+    ${qq?`<div class="qq"><span class="qbadge">Q</span><span>${esc(qq)}</span></div>${ans?`<p class="qans">${esc(ans)}</p>`:""}`:""}
+    <div class="row" style="gap:6px">${qq?`<button class="small${ans?" ghost":" primary"}" data-act="ansQ" data-md="${md}">${ans?"답 고치기":"질문에 답하기"}</button>`:""}<button class="ghost small" data-act="mineQuote" data-md="${md}">${mine?"내 문장 고치기":"내 문장 쓰기"}</button></div>
+  </section>`;}
+function ansSheet(md){const [m,dd]=md.split("-").map(Number);const cur=(S.dailyAns||{})[md]||"";
+  sheet(`<form class="stack" id="aqForm"><h2>${m}월 ${dd}일 질문</h2><div class="qq"><span class="qbadge">Q</span><span>${esc(qOf(md)||"")}</span></div>
+    <textarea id="aqTxt" rows="6" placeholder="내 생각을 자유롭게 적어 보세요">${esc(cur)}</textarea>
+    <p class="note">나만 볼 수 있어요. 저장하면 그날 화면에 같이 보여요.</p>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="aqCancel">취소</button><button class="primary">저장</button></div></form>`);
+  document.getElementById("aqCancel").onclick=closeSheet;
+  document.getElementById("aqForm").onsubmit=ev=>{ev.preventDefault();const v=document.getElementById("aqTxt").value.trim();S.dailyAns=S.dailyAns||{};
+    if(v)S.dailyAns[md]=v;else delete S.dailyAns[md];save();closeSheet();render();toast("답을 저장했어요");};}
+function mineSheet(md){const [m,dd]=md.split("-").map(Number);const e=dly(md);const cur=(S.dailyMine||{})[md]||"";
+  sheet(`<form class="stack" id="mqForm"><h2>${m}월 ${dd}일 내 문장</h2>${e?`<div class="note">${esc(e[0])} · ${esc(e[1])}</div>`:""}
+    <p class="note">달력 원문이나 내 생각을 적어 두면 그날 화면에 같이 보여요. 나만 볼 수 있어요.</p>
+    <textarea id="mqTxt" rows="5">${esc(cur)}</textarea>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="mqCancel">취소</button><button class="primary">저장</button></div></form>`);
+  document.getElementById("mqCancel").onclick=closeSheet;
+  document.getElementById("mqForm").onsubmit=ev=>{ev.preventDefault();const v=document.getElementById("mqTxt").value.trim();S.dailyMine=S.dailyMine||{};
+    if(v)S.dailyMine[md]=v;else delete S.dailyMine[md];save();closeSheet();render();toast("저장했어요");};}
+
+function routineBlock(){const t=todayStr();const {k,items}=routineFor(t);const done=(S.rchk[t]||[]);
+  const n=items.filter(i=>done.includes(i)).length;
+  return `<section class="panel stack" style="gap:4px">
+    <div class="row" style="justify-content:space-between"><h2>오늘 루틴 <span class="sh-${k} small">${k?k+" 근무":""}</span> <span class="label">${items.length?n+"/"+items.length:""}</span></h2><button class="ghost small" data-act="editRoutine">편집</button></div>
+    ${items.length?items.map(it=>`<label class="task ${done.includes(it)?"done":""}"><input type="checkbox" data-act="rchk" data-v="${esc(it)}" ${done.includes(it)?"checked":""}><span class="t">${esc(it)}</span></label>`).join(""):`<div class="empty">${k} 근무 날 루틴이 비어 있어요. 편집을 눌러 넣어 보세요.</div>`}
+  </section>`;}
+function nowBlock(){const r=running();
+  return r?`<button class="nowchip" data-act="goLog" style="--cc:${catColor(r.cat)}"><span class="cdot"></span>지금 <b>${esc(r.cat)}</b> <span class="mono">${hm((Date.now()-r.s)/6e4)}</span><span class="muted small" style="margin-left:auto">기록 보기 ›</span></button>`
+   :`<button class="nowchip idle" data-act="goLog"><span class="cdot" style="background:var(--line)"></span>지금 하는 일을 찍어 두면 하루가 보여요<span class="muted small" style="margin-left:auto">기록 ›</span></button>`;}
+
+/* ---------- render ---------- */
+const ICONS={
+  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  tasks:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>',
+  cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  stock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4v16M17 4v16"/><rect x="5" y="8" width="4" height="7" rx="1"/><rect x="15" y="6" width="4" height="9" rx="1"/></svg>',
+  log:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>',
+  fib:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4h18M3 9h18M3 13h18M3 17h18M3 21h18" opacity=".45"/><path d="M4 21 L10 6 L14 12 L20 4"/></svg>'
+};
+const TABS=[["today","오늘"],["tasks","할 일"],["log","기록"],["cal","달력"],["stock","주식"]];
+function renderTabs(){
+  const nw=newShared().length;
+  document.getElementById("tabs").innerHTML=TABS.filter(([k])=>k!=="stock"||workOK).map(([k,n])=>`<button data-tab="${k}" ${tab===k?'aria-current="page"':""}>${ICONS[k]}<span>${n}</span>${k==="today"&&nw?'<span class="tdot" aria-label="새 일정"></span>':""}</button>`).join("");
+}
+
+function render(){
+  renderTabs();
+  const app=document.getElementById("app");
+  if(tab==="stock"&&!workOK)tab="today";
+  app.innerHTML=({today:vToday,tasks:vTasks,log:vLog,cal:vCal,stock:vStockWrap})[tab]();
+  if(tab==="stock"&&stockSub==="fib") updateFib();
+}
+
+function head(title,sub,extra){
+  return `<header class="top"><div><div class="label">${sub}</div><h1>${title}</h1></div>${extra||""}</header>`;
+}
+
+function vStockWrap(){return `<div class="toggle" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">주식 일정</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치 계산기</button></div>`+(stockSub==="fib"?vFib():vStock());}
+function vToday(){
+  const t=todayStr(); const d=parseD(t);
+  const strip=[...Array(7)].map((_,i)=>{const ds=addDays(t,i);const s=shiftOf(ds);const dd=parseD(ds);
+    return `<button class="sday ${i===0?"today":""}" data-act="stripDay" data-d="${ds}"><div class="d">${dd.getMonth()+1}/${dd.getDate()} ${WD[dd.getDay()]}</div><div class="s sh-${s}">${s||"–"}</div></button>`;}).join("");
+  const open=S.tasks.filter(x=>!x.done);
+  const urgent=open.filter(x=>quad(x)===1||(x.due&&diffDays(x.due,t)<=1)).sort(byDue);
+  const evs=S.events.filter(e=>{const n=diffDays(e.date,t);return n>=0&&n<=7;}).sort(byEv);
+  const sh=shiftOf(t);
+  const shv=SE.filter(e=>{const n=diffDays(e.date,t);return n>=0&&n<=14;}).sort(byEv);
+  return head(new Date().getHours()<12?"좋은 아침이에요":"오늘도 힘내요",workOK?"근무·매매 수첩":"근무 수첩",canShift?`<button class="ghost small" data-act="settings">근무 설정</button>`:"")+
+  `<div class="stack">
+    ${quoteBlock()}
+    <section class="panel stack" style="gap:6px">
+      <div class="row" style="justify-content:space-between"><h2>오늘 챙길 일</h2><button class="small" data-act="newTask">+ 할 일</button></div>
+      ${urgent.length?urgent.map(taskRow).join(""):`<div class="empty">지금 하기 칸이나 내일까지 마감인 일이 없어요.</div>`}
+    </section>
+    ${routineBlock()}
+    ${(()=>{const nw=newShared();return nw.length?`<section class="panel stack newbox" style="gap:2px">
+      <div class="row" style="justify-content:space-between"><h2>새로 들어온 일정 <span class="nbadge">${nw.length}</span></h2><button class="small primary" data-act="seenShared">확인</button></div>
+      ${nw.slice(0,5).map(shRow).join("")}</section>`:"";})()}
+    ${db?`<section class="panel stack" style="gap:2px">
+      <div class="row" style="justify-content:space-between"><h2>함께 보는 일정</h2><button class="small" data-act="newShared">+ 함께</button></div>
+      ${shv.length?shv.map(shRow).join(""):`<div class="empty">2주 안에 함께 볼 일정이 없어요. 여기 적은 일정은 공유한 사람도 볼 수 있어요.</div>`}
+    </section>`:""}
+    ${workOK?`<section class="panel stack" style="gap:2px">
+      <div class="row" style="justify-content:space-between"><h2>이번 주 주식 일정 <span class="label">나만 보기</span></h2><button class="small" data-act="newEvent">+ 일정</button></div>
+      ${evs.length?evs.map(evRow).join(""):`<div class="empty">7일 안에 등록된 일정이 없어요. 실적 발표나 FOMC를 넣어 두세요.</div>`}
+    </section>`:""}
+    <div class="status" id="sync">${syncLabel()}</div>
+  </div>`;
+}
+function byDue(a,b){return (a.due||"9999")<(b.due||"9999")?-1:(a.due||"9999")>(b.due||"9999")?1:0;}
+function byEv(a,b){return (a.date+(a.time||""))<(b.date+(b.time||""))?-1:1;}
+
+function vTasks(){
+  const list=S.tasks.filter(x=>taskFilter==="all"||!x.done);
+  const q=[1,2,3,4].map(n=>{
+    const items=list.filter(x=>quad(x)===n).sort((a,b)=>(a.done-b.done)||byDue(a,b));
+    return `<section class="q" data-q="${n}"><button class="qh qadd" data-act="newTask" data-q="${n}" aria-label="${QN[n][0]}에 할 일 추가"><h3>${QN[n][0]}</h3><span class="row" style="gap:6px"><span class="label">${items.filter(i=>!i.done).length}</span><span class="qplus">+</span></span></button>
+      <div class="note">${QN[n][1]}</div>
+      <div>${items.length?items.map(taskRow).join(""):`<div class="empty">비어 있음</div>`}</div></section>`;
+  }).join("");
+  const doneN=S.tasks.filter(x=>x.done).length;
+  return head("할 일","아이젠하워 매트릭스",`<div class="row"><button class="small" data-act="openRecur">반복</button><button class="primary" data-act="newTask">+ 추가</button></div>`)+
+  `<div class="stack">
+    <div class="row" style="justify-content:space-between">
+      <div class="toggle" style="width:auto"><button data-act="filter" data-v="open" aria-pressed="${taskFilter==="open"}">진행 중</button><button data-act="filter" data-v="all" aria-pressed="${taskFilter==="all"}">완료 포함</button></div>
+      ${doneN?`<button class="ghost small" data-act="clearDone">완료 ${doneN}개 정리</button>`:""}
+    </div>
+    <div class="qgrid">${q}</div>
+    ${projBlock()}
+    <p class="note">마감 이틀 전부터 노란색, 지나면 빨간색으로 표시돼요. 할 일을 누르면 고칠 수 있어요.</p>
+  </div>`;
+}
+
+function vCal(){
+  if(!calMonth){const d=parseD(selDate);calMonth=[d.getFullYear(),d.getMonth()];}
+  const [y,m]=calMonth; const first=new Date(y,m,1); const start=new Date(y,m,1-first.getDay());
+  const t=todayStr();
+  let cells=WD.map((w,i)=>`<div class="wd ${i===0?"sun":i===6?"sat":""}">${w}</div>`).join("");
+  for(let i=0;i<42;i++){
+    const d=new Date(start);d.setDate(start.getDate()+i);const ds=todayStr(d);
+    if(i>=35&&d.getMonth()!==m) break;
+    const s=shiftOf(ds);
+    const hasT=S.tasks.some(x=>!x.done&&x.due===ds);const hasE=workOK&&S.events.some(e=>e.date===ds);const hasS=SE.some(e=>e.date===ds);
+    cells+=`<button class="cell ${d.getMonth()!==m?"other":""} ${ds===t?"today":""} ${ds===selDate?"sel":""} ${hasS?"hasS":""}" data-act="pick" data-d="${ds}">
+      <span class="n ${d.getDay()===0||HOLI[ds]?"sun":d.getDay()===6?"sat":""}">${d.getDate()}</span>
+      ${HOLI[ds]?`<span class="hn">${HOLI[ds]}</span>`:""}
+      ${s?`<span class="sb bg-${s} ${isOv(ds)?"ov":""}">${s}${isOv(ds)?"·대":""}</span>`:""}
+      <span class="dots">${hasT?'<span class="dot t"></span>':""}${hasE?'<span class="dot k"></span>':""}${hasS?'<span class="dot s"></span>':""}</span></button>`;
+  }
+  const sd=parseD(selDate);
+  const dayTasks=S.tasks.filter(x=>x.due===selDate);
+  const dayEv=S.events.filter(e=>e.date===selDate).sort(byEv);
+  const daySh=SE.filter(e=>e.date===selDate).sort(byEv);
+  const ss=shiftOf(selDate);
+  return head(`${y}년 ${m+1}월`,"달력",`<div class="row"><button aria-label="이전 달" data-act="mon" data-v="-1">‹</button><button data-act="mon" data-v="0" class="small">오늘</button><button aria-label="다음 달" data-act="mon" data-v="1">›</button></div>`)+
+  `<div class="stack">
+    <div class="cal">${cells}</div>
+    <div class="row small muted"><span class="dot t"></span>마감 있는 할 일 ${workOK?'<span class="dot k" style="margin-left:8px"></span>주식 일정':""} ${db?'<span class="dot s" style="margin-left:8px"></span>함께 보는 일정':""} <span class="row" style="margin-left:auto;gap:6px"><button class="small" data-act="toCal">캘린더로 보내기</button>${canShift?`<button class="ghost small" data-act="settings">근무 설정</button>`:""}</span></div>
+    <p class="note" style="margin:0">날짜를 누르면 그날 근무와 일정이 나와요.</p>
+  </div>${calOpen?`<div class="sheet-back" id="calBack"><div class="sheet stack" role="dialog" aria-modal="true" style="gap:8px">
+      <div class="row" style="justify-content:space-between"><h2>${sd.getMonth()+1}/${sd.getDate()} ${WD[sd.getDay()]} ${ss?`<span class="sh-${ss}">· ${ss}</span>`:""}${HOLI[selDate]?` <span class="sun">· ${HOLI[selDate]}</span>`:""}</h2>
+        <div class="row" style="flex-wrap:wrap"><button class="small" data-act="newTask" data-d="${selDate}">+ 할 일</button>${workOK?`<button class="small" data-act="newEvent" data-d="${selDate}">+ 주식</button>`:""}${db?`<button class="small" data-act="newShared" data-d="${selDate}">+ 함께</button>`:""}</div></div>
+      ${teamRow(selDate)}
+      ${canShift?`<div class="row small" style="gap:6px"><span class="label">이 날 근무</span>
+        <div class="toggle" style="flex:1">${[...new Set(["주","야","휴",...S.shift.pattern])].map(v=>`<button class="small" data-act="ovSet" data-v="${esc(v)}" aria-pressed="${shiftOf(selDate)===v}">${esc(v)}</button>`).join("")}</div>
+        ${isOv(selDate)?`<button class="small ghost" data-act="ovClear">원래대로 (${esc(baseShift(selDate))})</button>`:""}</div>`:`<div class="note">함께 보는 근무표예요. 근무와 대근은 앱 주인만 바꿀 수 있어요.</div>`}
+      ${isOv(selDate)?`<div class="note">대근으로 바꾼 날이에요. 원래 근무는 ${esc(baseShift(selDate))}입니다.</div>`:""}
+      ${dayTasks.length?dayTasks.map(taskRow).join(""):""}
+      ${daySh.length?daySh.map(shRow).join(""):""}
+      ${workOK&&dayEv.length?dayEv.map(evRow).join(""):""}
+      ${!dayTasks.length&&!dayEv.length&&!daySh.length?`<div class="empty">이 날짜에 등록된 게 없어요.</div>`:""}
+      <div class="row" style="justify-content:flex-end"><button data-act="calClose">닫기</button></div>
+    </div></div>`:""}`;
+}
+
+function evRow(e){
+  const d=parseD(e.date);const n=diffDays(e.date,todayStr());const sh=shiftOf(e.date);
+  return `<div class="ev" data-act="editEvent" data-id="${e.id}" style="cursor:pointer">
+    <div class="date"><div class="dn">${d.getMonth()+1}/${d.getDate()}</div><div class="small muted">${WD[d.getDay()]} ${sh?`<span class="sh-${sh}">${sh}</span>`:""}</div></div>
+    <div class="body"><div><span class="chip c-${esc(e.cat)}">${esc(e.cat)}</span>${e.time?`<span class="mono small muted">${esc(e.time)}</span>`:""}</div>
+      <div style="font-weight:600">${esc(e.title)}</div>
+      ${e.stocks?`<div class="small">관련: ${esc(e.stocks)}</div>`:""}
+      ${e.memo?`<div class="small muted">${esc(e.memo)}</div>`:""}
+    </div>
+    <div class="small mono muted">${n===0?"오늘":n>0?"D-"+n:""}</div></div>`;
+}
+
+function vStock(){
+  const t=todayStr();
+  const up=S.events.filter(e=>e.date>=t).sort(byEv);
+  const past=S.events.filter(e=>e.date<t).sort(byEv).reverse().slice(0,10);
+  return head("주식 일정","실적 · FOMC · 지표 · 배당",`<button class="primary" data-act="newEvent">+ 추가</button>`)+
+  `<div class="stack">
+    <section class="panel">${up.length?up.map(evRow).join(""):`<div class="empty">다가오는 일정이 없어요. 오른쪽 위 추가를 눌러 실적 발표일, FOMC, CPI 같은 일정을 넣어 보세요.</div>`}</section>
+    ${past.length?`<h3 class="muted">지난 일정</h3><section class="panel" style="opacity:.75">${past.map(evRow).join("")}</section>`:""}
+    <p class="note">미국 일정은 한국 시간으로 넣어 두면 근무표와 겹치는지 바로 보여요.</p>
+  </div>`;
+}
+
+function vFib(){
+  const saved=S.fibs.slice().reverse();
+  return head("피보나치 계산기","상한가 피보나치 사다리")+
+  `<div class="stack">
+    <section class="panel stack">
+      <div class="grid2">
+        <label class="field"><span class="label">시작점 (0) · 전날 종가</span><input id="fL" class="mono" inputmode="numeric" placeholder="예: 10,000" value="${esc(fibForm.L)}"></label>
+        <label class="field"><span class="label">고가 (1)</span><input id="fH" class="mono" inputmode="numeric" placeholder="예: 15,000" value="${esc(fibForm.H)}"></label>
+      </div>
+      <label class="field"><span class="label">종목명 (저장할 때)</span><input id="fN" placeholder="예: 한미반도체"></label>
+      <div class="toggle" id="fPreset">${Object.entries(PRESETS).map(([k,p])=>`<button data-act="preset" data-v="${k}" aria-pressed="${fibForm.preset===k}">${p.name}</button>`).join("")}</div>
+    </section>
+    <section class="panel" id="fOut"></section>
+    <section class="stack" style="gap:8px">
+      <h2>저장한 계산</h2>
+      ${saved.length?saved.map(f=>{const c=fibCalc(f.L,f.H,f.preset,[false,false,false]);return `<div class="panel row" style="justify-content:space-between">
+        <div style="min-width:0"><div style="font-weight:600">${esc(f.name||"이름 없음")}</div>
+        <div class="small mono muted">${fmt(f.L)} → ${fmt(f.H)} · ${PRESETS[f.preset].name}</div>
+        <div class="small mono">매수 ${c.buys.map(b=>fmt(b.price)).join(" / ")} · 손절 ${fmt(c.stop.price)}</div></div>
+        <div class="row"><button class="small" data-act="loadFib" data-id="${f.id}">불러오기</button><button class="small danger ghost" data-act="delFib" data-id="${f.id}" aria-label="삭제">✕</button></div></div>`;}).join(""):`<div class="empty">계산 결과 아래 저장을 누르면 여기에 쌓여요.</div>`}
+    </section>
+    <section class="panel stack" style="gap:8px">
+      <h3>백업</h3>
+      <p class="note">할 일, 주식 일정, 근무 설정, 저장한 계산을 한꺼번에 글자로 복사하거나 붙여넣어 되살릴 수 있어요.</p>
+      <div class="row"><button data-act="exportData">백업 복사</button><button data-act="importOpen">백업 붙여넣기</button></div>
+    </section>
+  </div>`;
+}
+function num(v){return Number(String(v).replace(/[^\d.]/g,""));}
+function updateFib(){
+  const out=document.getElementById("fOut"); if(!out) return;
+  const L=num(fibForm.L),H=num(fibForm.H);
+  if(!(L>0&&H>L)){out.innerHTML=`<div class="empty">시작점과 고가를 넣으면 매수가·손절가·익절가가 나와요. 고가는 시작점보다 커야 해요.</div>`;return;}
+  const P=PRESETS[fibForm.preset]; const c=fibCalc(L,H,fibForm.preset,fibForm.filled);
+  const suggest=c.rangePct>=100&&fibForm.preset==="basic"?`<div class="note" style="color:var(--q3)">상승폭이 100% 이상이에요. 깊은 구간 기준도 확인해 보세요.</div>`:"";
+  out.innerHTML=`<div class="row" style="justify-content:space-between;margin-bottom:6px"><h3>${P.name}</h3><span class="mono small muted">상승폭 ${c.rangePct.toFixed(1)}%</span></div>${suggest}
+  <table class="ladder"><tbody>
+    <tr class="edge"><td>고가 1.000</td><td></td><td class="big">${fmt(H)}</td></tr>
+    ${c.buys.map((b,i)=>`<tr class="buy"><td>${i+1}차 매수 ${b.r.toFixed(3)}</td><td><label class="small row" style="gap:4px;justify-content:center"><input type="checkbox" data-act="fill" data-i="${i}" ${fibForm.filled[i]?"checked":""} style="width:16px;height:16px;accent-color:var(--accent)">체결</label></td><td class="big">${fmt(b.price)}</td></tr>`).join("")}
+    <tr class="stop"><td>손절 ${c.stop.r.toFixed(3)}</td><td></td><td class="big">${fmt(c.stop.price)}</td></tr>
+    <tr class="edge"><td>시작점 0</td><td></td><td class="big">${fmt(L)}</td></tr>
+    <tr class="tp"><td>익절 평단 +4%</td><td class="small muted" style="text-align:center">${c.avg?"평단 "+fmt(c.avg):"체결 체크"}</td><td class="big">${c.tp?fmt(c.tp):"–"}</td></tr>
+  </tbody></table>
+  <p class="note">가격은 호가 단위에 맞춰 올림. 평단은 차수마다 같은 금액을 산다고 보고 계산해요. 체결한 차수에 체크하세요.</p>
+  <div class="row" style="justify-content:flex-end"><button class="primary" data-act="saveFib">저장</button></div>`;
+}
+
+/* ---------- sheets ---------- */
+function sheet(html){
+  closeSheet();
+  const b=document.createElement("div");b.className="sheet-back";b.id="sheet";
+  b.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
+  b.addEventListener("click",e=>{if(e.target===b)closeSheet();});
+  document.body.appendChild(b);
+  const f=b.querySelector("input,textarea");if(f)setTimeout(()=>f.focus(),50);
+}
+function closeSheet(){const s=document.getElementById("sheet");if(s)s.remove();}
+function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1800);}
+
+function taskSheet(t,presetDate,presetQ){
+  const isNew=!t; const pq=Number(presetQ)||2;
+  t=t||{title:"",imp:pq===1||pq===2,urg:pq===1||pq===3,due:presetDate||"",memo:""};
+  sheet(`<form class="stack" id="taskForm">
+    <h2>${isNew?"할 일 추가":"할 일 고치기"}</h2>
+    <label class="field"><span class="label">할 일</span><input id="tTitle" required value="${esc(t.title)}" placeholder="예: 안전교육 보고서 제출"></label>
+    <div class="grid2">
+      <div class="field"><span class="label">중요한가요?</span><div class="toggle"><button type="button" data-tg="imp" data-v="1" aria-pressed="${!!t.imp}">중요</button><button type="button" data-tg="imp" data-v="0" aria-pressed="${!t.imp}">아님</button></div></div>
+      <div class="field"><span class="label">급한가요?</span><div class="toggle"><button type="button" data-tg="urg" data-v="1" aria-pressed="${!!t.urg}">긴급</button><button type="button" data-tg="urg" data-v="0" aria-pressed="${!t.urg}">아님</button></div></div>
+    </div>
+    <label class="field"><span class="label">마감일</span><input id="tDue" type="date" value="${esc(t.due)}"></label>
+    <div class="note" id="tShift"></div>
+    <label class="field"><span class="label">메모</span><textarea id="tMemo" rows="2">${esc(t.memo)}</textarea></label>
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="tDel">삭제</button>`}
+      <div class="row"><button type="button" class="ghost" id="tCancel">취소</button><button class="primary">저장</button></div></div>
+  </form>`);
+  const st={imp:!!t.imp,urg:!!t.urg};
+  const form=document.getElementById("taskForm");
+  const showShift=()=>{const v=document.getElementById("tDue").value;document.getElementById("tShift").textContent=v?`그날 근무: ${shiftOf(v)||"-"}`:"";};
+  showShift();document.getElementById("tDue").addEventListener("input",showShift);
+  form.querySelectorAll("[data-tg]").forEach(b=>b.addEventListener("click",()=>{st[b.dataset.tg]=b.dataset.v==="1";
+    form.querySelectorAll(`[data-tg="${b.dataset.tg}"]`).forEach(x=>x.setAttribute("aria-pressed",String(x===b)));}));
+  document.getElementById("tCancel").onclick=closeSheet;
+  const del=document.getElementById("tDel");
+  if(del) del.onclick=()=>{if(del.dataset.sure){S.tasks=S.tasks.filter(x=>x.id!==t.id);save();closeSheet();render();}else{del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";}};
+  form.onsubmit=e=>{e.preventDefault();
+    const v={title:document.getElementById("tTitle").value.trim(),imp:st.imp,urg:st.urg,due:document.getElementById("tDue").value,memo:document.getElementById("tMemo").value.trim()};
+    if(!v.title)return;
+    if(isNew)S.tasks.push(Object.assign({id:uidGen(),done:false,created:todayStr()},v));else Object.assign(t,v);
+    save();closeSheet();render();toast(isNew?"추가했어요":"저장했어요");};
+}
+
+const PK={long:"장기 프로젝트",short:"단기 프로젝트"};
+function projBlock(){
+  const ps=S.projects||[];
+  const col=k=>{const list=ps.filter(p=>p.kind===k).sort((a,b)=>(a.done-b.done)||((a.due||"9")<(b.due||"9")?-1:1));
+    return `<section class="pcol"><div class="row" style="justify-content:space-between"><h3>${PK[k]}</h3><button class="small" data-act="newProj" data-k="${k}">+</button></div>
+      ${list.length?list.map(p=>{const st=p.steps||[];const dn=st.filter(x=>x.d).length;const pct=st.length?Math.round(dn/st.length*100):(p.done?100:0);
+        const n=p.due?diffDays(p.due,todayStr()):null;
+        return `<div class="proj ${p.done?"pdone":""}"><button class="ptitle" data-act="editProj" data-id="${p.id}">${esc(p.name)}</button>
+          <div class="row small muted" style="gap:8px">${p.due?`<span class="dd ${n<0&&!p.done?"late":n<=7&&!p.done?"soon":""}">${n===0?"D-DAY":n>0?"D-"+n:"D+"+(-n)}</span>`:""}<span class="mono">${st.length?dn+"/"+st.length:""}</span></div>
+          <div class="pbar"><i style="width:${pct}%"></i></div>
+          ${st.length?`<div class="psteps">${st.map((x,i)=>`<label class="task ${x.d?"done":""}"><input type="checkbox" data-act="pstep" data-id="${p.id}" data-i="${i}" ${x.d?"checked":""}><span class="t">${esc(x.t)}</span></label>`).join("")}</div>`:""}
+        </div>`;}).join(""):`<div class="empty">비어 있어요</div>`}</section>`;};
+  return `<div class="pgrid">${col("long")}${col("short")}</div>`;
+}
+function projSheet(p,kind){
+  const isNew=!p;p=p||{name:"",kind:kind||"short",due:"",steps:[],memo:""};
+  sheet(`<form class="stack" id="pjForm"><h2>${isNew?"프로젝트 추가":"프로젝트 고치기"}</h2>
+    <label class="field"><span class="label">이름</span><input id="pjName" required value="${esc(p.name)}" placeholder="예: 전기기사 공부, 집 정리"></label>
+    <div class="field"><span class="label">기간</span><div class="toggle">${["short","long"].map(k=>`<button type="button" data-pk="${k}" aria-pressed="${p.kind===k}">${PK[k]}</button>`).join("")}</div></div>
+    <label class="field"><span class="label">목표일 (없어도 돼요)</span><input id="pjDue" type="date" value="${esc(p.due)}"></label>
+    <label class="field"><span class="label">단계 (한 줄에 하나)</span><textarea id="pjSteps" rows="5" placeholder="자료 모으기&#10;1장 끝내기&#10;모의고사">${esc((p.steps||[]).map(x=>x.t).join("\n"))}</textarea></label>
+    <label class="field"><span class="label">메모</span><textarea id="pjMemo" rows="2">${esc(p.memo||"")}</textarea></label>
+    ${isNew?"":`<button type="button" id="pjDone">${p.done?"다시 진행 중으로":"완료로 표시"}</button>`}
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="ghost danger" id="pjDel">삭제</button>`}<div class="row"><button type="button" class="ghost" id="pjCancel">취소</button><button class="primary">저장</button></div></div></form>`);
+  let kd=p.kind;const f=document.getElementById("pjForm");
+  f.querySelectorAll("[data-pk]").forEach(b=>b.onclick=()=>{kd=b.dataset.pk;f.querySelectorAll("[data-pk]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));});
+  document.getElementById("pjCancel").onclick=closeSheet;
+  const dn=document.getElementById("pjDone");if(dn)dn.onclick=()=>{p.done=!p.done;save();closeSheet();render();};
+  const del=document.getElementById("pjDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.projects=S.projects.filter(x=>x.id!==p.id);save();closeSheet();render();};
+  f.onsubmit=ev=>{ev.preventDefault();const name=document.getElementById("pjName").value.trim();if(!name)return;
+    const old=p.steps||[];const lines=document.getElementById("pjSteps").value.split("\n").map(x=>x.trim()).filter(Boolean);
+    const steps=lines.map(t=>{const o=old.find(x=>x.t===t);return {t,d:o?o.d:false};});
+    const v={name,kind:kd,due:document.getElementById("pjDue").value,steps,memo:document.getElementById("pjMemo").value.trim()};
+    S.projects=S.projects||[];if(isNew)S.projects.push(Object.assign({id:uidGen(),done:false},v));else Object.assign(p,v);
+    save();closeSheet();render();toast("저장했어요");};
+}
+function catSheet(){
+  const list=(S.customCats||[]).map((c,i)=>`<div class="lrow"><span class="cdot" style="background:${CUSTOM_COLORS[i%CUSTOM_COLORS.length]}"></span><span style="flex:1">${esc(c)}</span><button type="button" class="ghost small danger" data-del-cat="${i}">삭제</button></div>`).join("");
+  sheet(`<form class="stack" id="catForm"><h2>시간 기록 항목</h2>
+    <p class="note">기본 항목: ${BASE_CATS.map(c=>c[0]).join(", ")}. 내가 쓸 항목을 더 넣을 수 있어요.</p>
+    <div>${list||`<div class="empty">아직 추가한 항목이 없어요.</div>`}</div>
+    <div class="row" style="flex-wrap:nowrap"><input id="catName" maxlength="10" placeholder="예: 운전, 공부, 집안일"><button class="primary" style="flex:none">추가</button></div>
+    <div class="note" id="catErr" style="color:var(--q1)"></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="catClose">닫기</button></div></form>`);
+  document.getElementById("catClose").onclick=closeSheet;
+  document.querySelectorAll("[data-del-cat]").forEach(b=>b.onclick=()=>{S.customCats.splice(Number(b.dataset.delCat),1);save();render();catSheet();});
+  document.getElementById("catForm").onsubmit=ev=>{ev.preventDefault();const v=document.getElementById("catName").value.trim();const err=document.getElementById("catErr");
+    if(!v){err.textContent="항목 이름을 적어 주세요.";return;}
+    if(cats().some(c=>c[0]===v)){err.textContent="이미 있는 항목이에요.";return;}
+    S.customCats=S.customCats||[];S.customCats.push(v);save();render();catSheet();toast(`${v} 항목을 추가했어요`);};
+}
+function routineSheet(){
+  const keys=[...new Set(["주","야","휴",...S.shift.pattern.map(routineKey)])];
+  sheet(`<form class="stack" id="rtForm"><h2>근무별 루틴</h2>
+    <p class="note">근무마다 매번 챙길 일을 한 줄에 하나씩 적어 주세요. 오늘 근무에 맞는 루틴이 오늘 화면에 떠요.</p>
+    ${keys.map(k=>`<label class="field"><span class="label"><span class="sh-${k}">${esc(k)}</span> 근무 날</span><textarea data-rk="${esc(k)}" rows="3">${esc((S.routines[k]||[]).join("\n"))}</textarea></label>`).join("")}
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="rtCancel">취소</button><button class="primary">저장</button></div></form>`);
+  document.getElementById("rtCancel").onclick=closeSheet;
+  document.getElementById("rtForm").onsubmit=e=>{e.preventDefault();
+    document.querySelectorAll("[data-rk]").forEach(ta=>{S.routines[ta.dataset.rk]=ta.value.split("\n").map(s=>s.trim()).filter(Boolean);});
+    save();closeSheet();render();toast("루틴을 저장했어요");};
+}
+function quoteSheet(){
+  sheet(`<form class="stack" id="qtForm"><h2>오늘의 문장</h2>
+    <p class="note">한 줄에 문장 하나씩 적어 주세요. 날마다 순서대로 하나씩 보여요. 지금 ${(S.quotes||[]).filter(Boolean).length}개.</p>
+    <textarea id="qtTxt" rows="9" placeholder="예: 오늘 할 일을 내일로 미루지 않는다">${esc((S.quotes||[]).join("\n"))}</textarea>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="qtCancel">취소</button><button class="primary">저장</button></div></form>`);
+  document.getElementById("qtCancel").onclick=closeSheet;
+  document.getElementById("qtForm").onsubmit=e=>{e.preventDefault();
+    S.quotes=document.getElementById("qtTxt").value.split("\n").map(s=>s.trim()).filter(Boolean);save();closeSheet();render();toast("문장을 저장했어요");};
+}
+function recurSheet(){
+  const keys=[...new Set(S.shift.pattern)];
+  const list=(S.recur||[]).map(r=>`<div class="lrow"><span style="flex:1;min-width:0">${esc(r.title)}<div class="small muted">${recLabel(r)} · ${QN[quad(r)][0]}</div></span><button type="button" class="ghost small danger" data-del-rec="${r.id}">삭제</button></div>`).join("");
+  sheet(`<form class="stack" id="rcForm"><h2>반복 할 일</h2>
+    <p class="note">한 번 넣어 두면 일주일 앞까지 할 일 칸에 자동으로 생겨요.</p>
+    <div>${list||`<div class="empty">아직 반복 할 일이 없어요.</div>`}</div>
+    <h3>새로 추가</h3>
+    <label class="field"><span class="label">할 일</span><input id="rcTitle" placeholder="예: 공과금 납부"></label>
+    <div class="field"><span class="label">반복</span><div class="toggle" style="flex-wrap:wrap">
+      ${[["weekly","매주"],["monthly","매월"],["shift","근무별"],["daily","매일"]].map(([v,n],i)=>`<button type="button" data-rf="${v}" aria-pressed="${i===0}">${n}</button>`).join("")}</div></div>
+    <div class="field" id="rcW"><span class="label">요일</span><div class="toggle">${WD.map((w,i)=>`<button type="button" data-dow="${i}" aria-pressed="false">${w}</button>`).join("")}</div></div>
+    <label class="field" id="rcM" hidden><span class="label">매월 며칠</span><input id="rcDom" type="number" min="1" max="31" value="25"></label>
+    <label class="field" id="rcS" hidden><span class="label">어느 근무 날</span><select id="rcShift">${keys.map(k=>`<option>${esc(k)}</option>`).join("")}</select></label>
+    <div class="grid2">
+      <div class="field"><span class="label">중요한가요?</span><div class="toggle"><button type="button" data-rt="imp" data-v="1" aria-pressed="true">중요</button><button type="button" data-rt="imp" data-v="0" aria-pressed="false">아님</button></div></div>
+      <div class="field"><span class="label">급한가요?</span><div class="toggle"><button type="button" data-rt="urg" data-v="1" aria-pressed="false">긴급</button><button type="button" data-rt="urg" data-v="0" aria-pressed="true">아님</button></div></div>
+    </div>
+    <div class="note" id="rcErr" style="color:var(--q1)"></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="rcClose">닫기</button><button class="primary">추가</button></div></form>`);
+  let freq="weekly";const dows=new Set();const st={imp:true,urg:false};
+  const f=document.getElementById("rcForm");
+  const vis=()=>{document.getElementById("rcW").hidden=freq!=="weekly";document.getElementById("rcM").hidden=freq!=="monthly";document.getElementById("rcS").hidden=freq!=="shift";};
+  f.querySelectorAll("[data-rf]").forEach(b=>b.onclick=()=>{freq=b.dataset.rf;f.querySelectorAll("[data-rf]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));vis();});
+  f.querySelectorAll("[data-dow]").forEach(b=>b.onclick=()=>{const i=Number(b.dataset.dow);dows.has(i)?dows.delete(i):dows.add(i);b.setAttribute("aria-pressed",String(dows.has(i)));});
+  f.querySelectorAll("[data-rt]").forEach(b=>b.onclick=()=>{st[b.dataset.rt]=b.dataset.v==="1";f.querySelectorAll(`[data-rt="${b.dataset.rt}"]`).forEach(x=>x.setAttribute("aria-pressed",String(x===b)));});
+  f.querySelectorAll("[data-del-rec]").forEach(b=>b.onclick=()=>{const id=b.dataset.delRec;const t=todayStr();
+    S.recur=S.recur.filter(r=>r.id!==id);S.tasks=S.tasks.filter(x=>!(x.rid===id&&!x.done&&x.due>=t));save();render();recurSheet();toast("반복 할 일을 지웠어요");});
+  document.getElementById("rcClose").onclick=closeSheet;
+  f.onsubmit=e=>{e.preventDefault();const title=document.getElementById("rcTitle").value.trim();const err=document.getElementById("rcErr");
+    if(!title){err.textContent="할 일 이름을 적어 주세요.";return;}
+    if(freq==="weekly"&&!dows.size){err.textContent="반복할 요일을 하나 이상 골라 주세요.";return;}
+    const r={id:uidGen(),title,freq,imp:st.imp,urg:st.urg};
+    if(freq==="weekly")r.dows=[...dows];
+    if(freq==="monthly")r.dom=Math.min(31,Math.max(1,Number(document.getElementById("rcDom").value)||1));
+    if(freq==="shift")r.shift=document.getElementById("rcShift").value;
+    S.recur=S.recur||[];S.recur.push(r);genRecurring();save();render();recurSheet();toast(`${recLabel(r)} 반복으로 추가했어요`);};
+}
+function logSheet(preCat,editId){
+  const ds=logDate;const dd=parseD(ds);
+  const ed=editId?S.logs.find(l=>l.id===editId):null;
+  const dayDone=S.logs.filter(l=>l.e&&dateOfMs(l.s)===ds&&(ds!==todayStr()||l.e<=Date.now())).sort((a,b)=>a.e-b.e);
+  const prev=!ed&&dayDone.length?dayDone[dayDone.length-1]:null;
+  const cur0=ed?ed.cat:(preCat||cats()[0][0]);
+  const durM=ed?Math.round((ed.e-ed.s)/6e4):60;
+  const fixedTxt=ed?`끝난 시간 <b class="mono">${tStr(ed.e)}</b> 고정`:prev?`시작 <b class="mono">${tStr(prev.e)}</b> 고정 (앞 기록 ‘${esc(prev.cat)}’이 끝난 시간)`:"";
+  sheet(`<form class="stack" id="lgForm"><h2>${ed?"기록 고치기":"시간 적기"}</h2>
+    <p class="note">${dd.getMonth()+1}/${dd.getDate()} 기록이에요. 한 시간만 적으면 돼요.</p>
+    <div class="field"><span class="label">항목</span><div class="toggle" style="flex-wrap:wrap">${cats().map(([c])=>`<button type="button" data-lc="${esc(c)}" aria-pressed="${c===cur0}">${esc(c)}</button>`).join("")}</div></div>
+    ${fixedTxt?`<div class="note">${fixedTxt}</div>`:`<label class="field"><span class="label">시작</span><input id="lgS" type="time" value="09:00"></label>`}
+    <div class="field"><span class="label">한 시간</span><div class="row" style="flex-wrap:nowrap">
+      <input id="lgH" type="number" inputmode="numeric" min="0" max="23" value="${Math.floor(durM/60)}" style="width:5em"><span>시간</span>
+      <input id="lgM" type="number" inputmode="numeric" min="0" max="59" step="5" value="${durM%60}" style="width:5em"><span>분</span></div>
+      <div class="row" style="gap:6px;margin-top:6px">${[15,30,60,90,120].map(m=>`<button type="button" class="small" data-dur="${m}">${m<60?m+"분":(m/60)+"시간"}</button>`).join("")}</div></div>
+    <div class="note mono" id="lgPrev"></div>
+    ${!ed&&ds===todayStr()?`<button type="button" class="startbtn" id="lgStart">▶ ${prev?`${tStr(prev.e)}부터`:"지금부터"} 시작 · 끝날 때 종료 누르기</button>`:""}
+    <div class="row" style="justify-content:space-between">${ed?`<button type="button" class="ghost danger" id="lgDel">삭제</button>`:"<span></span>"}<div class="row"><button type="button" class="ghost" id="lgCancel">취소</button><button class="primary">${ed?"저장":"추가"}</button></div></div></form>`);
+  let cat=cur0;const f=document.getElementById("lgForm");
+  const H=document.getElementById("lgH"),M=document.getElementById("lgM"),Si=document.getElementById("lgS");
+  const calc=()=>{const dur=Math.max(0,(Number(H.value)||0)*60+(Number(M.value)||0))*6e4;let s,e;
+    if(ed){e=ed.e;s=e-dur;}else{if(prev)s=prev.e;else{const [h,m]=(Si.value||"09:00").split(":").map(Number);const b=new Date(dd);b.setHours(h,m,0,0);s=b.getTime();}e=s+dur;}
+    return {s,e,dur};};
+  const show=()=>{const r=calc();document.getElementById("lgPrev").textContent=r.dur?`${tStr(r.s)} – ${tStr(r.e)} · ${hm(r.dur/6e4)}`:"한 시간을 적어 주세요";};
+  show();[H,M,Si].forEach(x=>x&&x.addEventListener("input",show));
+  f.querySelectorAll("[data-dur]").forEach(b=>b.onclick=()=>{const m=Number(b.dataset.dur);H.value=Math.floor(m/60);M.value=m%60;show();});
+  f.querySelectorAll("[data-lc]").forEach(b=>b.onclick=()=>{cat=b.dataset.lc;f.querySelectorAll("[data-lc]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));});
+  document.getElementById("lgCancel").onclick=closeSheet;
+  const stb=document.getElementById("lgStart");if(stb)stb.onclick=()=>{const now=Date.now();const r=running();if(r)r.e=now;
+    const st=prev&&prev.e<=now?prev.e:now;S.logs.push({id:uidGen(),cat,s:st,e:null});save();closeSheet();render();toast(`${cat} 시작 · 끝나면 종료를 눌러요`);};
+  const del=document.getElementById("lgDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.logs=S.logs.filter(l=>l.id!==ed.id);save();closeSheet();render();};
+  f.onsubmit=ev=>{ev.preventDefault();const r=calc();if(!r.dur){toast("한 시간을 적어 주세요");return;}
+    if(ed){ed.cat=cat;ed.s=r.s;}else S.logs.push({id:uidGen(),cat,s:r.s,e:r.e});
+    save();closeSheet();render();toast(ed?"고쳤어요":"추가했어요");};
+}
+
+function sharedSheet(e,presetDate){
+  if(!db)return;
+  const isNew=!e; e=e||{date:presetDate||todayStr(),time:"",title:"",memo:""};
+  sheet(`<form class="stack" id="shEvForm">
+    <h2>${isNew?"함께 보는 일정 추가":"함께 보는 일정 고치기"}</h2>
+    <p class="note">여기 적은 일정은 이 앱을 공유한 사람도 보고 고칠 수 있어요. 할 일과 주식 내용은 공유되지 않아요.</p>
+    <label class="field"><span class="label">일정</span><input id="gTitle" required value="${esc(e.title)}" placeholder="예: 가족 외식, 병원 예약"></label>
+    <div class="grid2"><label class="field"><span class="label">날짜</span><input id="gDate" type="date" required value="${esc(e.date)}"></label>
+      <label class="field"><span class="label">시간</span><input id="gTime" type="time" value="${esc(e.time)}"></label></div>
+    <div class="note" id="gShift"></div>
+    <label class="field"><span class="label">메모</span><textarea id="gMemo" rows="2">${esc(e.memo)}</textarea></label>
+    <div class="note" id="gErr" style="color:var(--q1)"></div>
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="gDel">삭제</button>`}
+      <div class="row"><button type="button" class="ghost" id="gCancel">취소</button><button class="primary">저장</button></div></div>
+  </form>`);
+  const showShift=()=>{const v=document.getElementById("gDate").value;document.getElementById("gShift").textContent=v?`그날 근무: ${shiftOf(v)||"-"}`:"";};
+  showShift();document.getElementById("gDate").addEventListener("input",showShift);
+  document.getElementById("gCancel").onclick=closeSheet;
+  const fail=()=>{document.getElementById("gErr").textContent="저장하지 못했어요. 앱을 편집 가능(참여자 이상)으로 공유받았는지 확인해 주세요.";};
+  const del=document.getElementById("gDel");
+  if(del) del.onclick=async()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}
+    try{await db.doc("shared/main/events/"+e.id).delete();closeSheet();toast("삭제했어요");}catch(err){fail();}};
+  document.getElementById("shEvForm").onsubmit=async ev=>{ev.preventDefault();
+    const v={title:document.getElementById("gTitle").value.trim(),date:document.getElementById("gDate").value,time:document.getElementById("gTime").value,memo:document.getElementById("gMemo").value.trim()};
+    if(!v.title||!v.date)return;
+    try{
+      if(isNew)await db.collection("shared/main/events").add(Object.assign(v,{by:uid,at:Date.now()}));
+      else await db.doc("shared/main/events/"+e.id).set(Object.assign({},v,{by:e.by||uid,at:Date.now()}));
+      closeSheet();toast(isNew?"함께 보는 일정에 추가했어요":"저장했어요");
+    }catch(err){fail();}};
+}
+
+const CATS=["실적","FOMC","경제지표","배당","기타"];
+function eventSheet(e,presetDate){
+  const isNew=!e; e=e||{date:presetDate||todayStr(),time:"",cat:"실적",title:"",stocks:"",memo:""};
+  sheet(`<form class="stack" id="evForm">
+    <h2>${isNew?"주식 일정 추가":"주식 일정 고치기"}</h2>
+    <div class="field"><span class="label">종류</span><div class="toggle" style="flex-wrap:wrap">${CATS.map(c=>`<button type="button" data-cat="${c}" aria-pressed="${e.cat===c}">${c}</button>`).join("")}</div></div>
+    <label class="field"><span class="label">제목</span><input id="eTitle" required value="${esc(e.title)}" placeholder="예: 마이크론 실적 발표"></label>
+    <div class="grid2"><label class="field"><span class="label">날짜</span><input id="eDate" type="date" required value="${esc(e.date)}"></label>
+      <label class="field"><span class="label">시간 (한국)</span><input id="eTime" type="time" value="${esc(e.time)}"></label></div>
+    <div class="note" id="eShift"></div>
+    <label class="field"><span class="label">영향받을 종목</span><input id="eStocks" value="${esc(e.stocks)}" placeholder="예: SK하이닉스, 한미반도체"></label>
+    <label class="field"><span class="label">메모</span><textarea id="eMemo" rows="2">${esc(e.memo)}</textarea></label>
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="eDel">삭제</button>`}
+      <div class="row"><button type="button" class="ghost" id="eCancel">취소</button><button class="primary">저장</button></div></div>
+  </form>`);
+  let cat=e.cat;const form=document.getElementById("evForm");
+  const showShift=()=>{const v=document.getElementById("eDate").value;document.getElementById("eShift").textContent=v?`그날 근무: ${shiftOf(v)||"-"}`:"";};
+  showShift();document.getElementById("eDate").addEventListener("input",showShift);
+  form.querySelectorAll("[data-cat]").forEach(b=>b.addEventListener("click",()=>{cat=b.dataset.cat;form.querySelectorAll("[data-cat]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));}));
+  document.getElementById("eCancel").onclick=closeSheet;
+  const del=document.getElementById("eDel");
+  if(del) del.onclick=()=>{if(del.dataset.sure){S.events=S.events.filter(x=>x.id!==e.id);save();closeSheet();render();}else{del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";}};
+  form.onsubmit=ev=>{ev.preventDefault();
+    const v={cat,title:document.getElementById("eTitle").value.trim(),date:document.getElementById("eDate").value,time:document.getElementById("eTime").value,stocks:document.getElementById("eStocks").value.trim(),memo:document.getElementById("eMemo").value.trim()};
+    if(!v.title||!v.date)return;
+    if(isNew)S.events.push(Object.assign({id:uidGen()},v));else Object.assign(e,v);
+    save();closeSheet();render();toast(isNew?"추가했어요":"저장했어요");};
+}
+
+function settingsSheet(){
+  const t=todayStr();
+  sheet(`<form class="stack" id="shForm">
+    <h2>근무 설정</h2>
+    <div class="field"><span class="label">내 조</span><div class="toggle">${["A","B","C","D"].map(x=>`<button type="button" data-tm="${x}" aria-pressed="${x===myTeam()}">${x}조</button>`).join("")}</div></div>
+    <label class="field" id="tmWhen" hidden><span class="label">언제부터 옮기나요?</span><input id="tmDate" type="date" value="${esc(t)}"></label>
+    <p class="note" id="tmNote">조를 옮기면 그날부터 근무표가 새 조 순서로 바뀌어요. 그전 날짜는 원래 조 근무로 남아요.</p>
+    <details><summary class="small muted">순환 순서 직접 고치기</summary><div class="stack" style="margin-top:10px">
+    <p class="note">순환 순서와, 기준이 되는 날짜 하나의 근무만 알려주면 나머지 날짜는 자동으로 채워져요.</p>
+    <label class="field"><span class="label">순환 순서 (쉼표로 구분)</span><input id="sPat" value="${esc(S.shift.pattern.join(","))}" placeholder="야,야,휴,휴,주,주,휴,휴"></label>
+    <div class="grid2"><label class="field"><span class="label">기준 날짜</span><input id="sDate" type="date" value="${esc(t)}"></label>
+      <label class="field"><span class="label">그날 근무</span><select id="sIdx"></select></label></div>
+    </div></details>
+    <div class="label">앞으로 7일</div>
+    <div class="strip" id="sPrev"></div>
+    ${window.claude?"":`<label class="row" style="gap:8px"><input type="checkbox" id="sStock" ${S.stockOn?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">주식 기능 쓰기 <span class="note">(주식 탭, 주식 일정, 매매 글귀, 근무 자동 기록)</span></label>`}
+    <div class="row" style="gap:6px"><button type="button" class="small ghost" data-act="exportData">백업 복사</button><button type="button" class="small ghost" data-act="importOpen">백업 붙여넣기</button></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="sCancel">취소</button><button class="primary">저장</button></div>
+  </form>`);
+  const pat=()=>document.getElementById("sPat").value.split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
+  const sel=document.getElementById("sIdx");
+  let team=myTeam(),patTouched=false;
+  const moves=()=>{if(team===myTeam())return teamMoves();const from=document.getElementById("tmDate").value||t;const m=teamMoves().filter(x=>!x.from||x.from<from);const last=m.length?m[m.length-1].team:"C";if(last!==team)m.push({from,team});return m;};
+  const fill=()=>{const p=pat();const cur=baseShift(document.getElementById("sDate").value||t);
+    sel.innerHTML=p.map((s,i)=>`<option value="${i}" ${s===cur?"selected":""}>${esc(s)} (${i+1}번째)</option>`).join("");prev();};
+  const calc=()=>{const p=pat();const ref=document.getElementById("sDate").value||t;const m=moves();
+    if(!patTouched)return {pattern:S.shift.pattern,refDate:S.shift.refDate,refIndex:S.shift.refIndex,teams:m};
+    let tr="C";m.forEach(x=>{if(!x.from||x.from<=ref)tr=x.team;});
+    return {pattern:p,refDate:ref,refIndex:(Number(sel.value)||0)+(TEAMS.off[tr]||0),teams:m};};
+  const prev=()=>{const p=pat();if(!p.length)return;const c=calc();const keep=S.shift;S.shift=c;
+    const html=[...Array(7)].map((_,i)=>{const ds=addDays(t,i);const s=baseShift(ds);const dd=parseD(ds);
+      return `<div class="sday ${i===0?"today":""}"><div class="d">${dd.getMonth()+1}/${dd.getDate()} ${WD[dd.getDay()]}</div><div class="s sh-${s}">${esc(s)}</div></div>`;}).join("");
+    S.shift=keep;document.getElementById("sPrev").innerHTML=html;};
+  fill();
+  const touch=()=>{patTouched=true;};
+  document.getElementById("sPat").addEventListener("input",()=>{touch();fill();});
+  document.getElementById("sDate").addEventListener("input",()=>{touch();fill();});
+  sel.addEventListener("change",()=>{touch();prev();});
+  document.querySelectorAll("[data-tm]").forEach(b=>b.onclick=()=>{team=b.dataset.tm;document.querySelectorAll("[data-tm]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+    document.getElementById("tmWhen").hidden=team===myTeam();prev();});
+  document.getElementById("tmDate").addEventListener("input",prev);
+  document.getElementById("sCancel").onclick=closeSheet;
+  document.getElementById("shForm").onsubmit=e=>{e.preventDefault();const p=pat();if(!p.length)return;
+    const before=myTeam();S.shift=calc();const sk=document.getElementById("sStock");if(sk&&!!S.stockOn!==sk.checked){S.stockOn=sk.checked;enableWork(sk.checked);}save();pushShift();closeSheet();render();
+    toast(team!==before?`${team}조로 옮겼어요`:"근무표를 바꿨어요");};
+}
+
+
+/* ---------- 캘린더로 보내기 (.ics) ---------- */
+const ICS_SHIFT={"주":[[6,0],[19,30]],"야":[[18,0],[7,30]]};
+function icsOpt(){return Object.assign({range:30,shift:"all",shiftAl:"eve",tasks:true,taskTime:"08:00",shared:true,stock:true,evAl:60,onlyNew:true},S.icsOpt||{});}
+function icsStamp(d){return d.toISOString().replace(/[-:]/g,"").replace(/\.\d+Z$/,"Z");}
+function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/([,;])/g,"\\$1");}
+function icsFold(line){const out=[];let cur="",n=0;for(const ch of line){const b=new TextEncoder().encode(ch).length;if(n+b>73){out.push(cur);cur=" ";n=1;}cur+=ch;n+=b;}out.push(cur);return out.join("\r\n");}
+function atT(ds,h,m){const d=parseD(ds);d.setHours(h,m,0,0);return d;}
+function icsItems(o){
+  const t=todayStr(),end=addDays(t,o.range),items=[];
+  const inR=ds=>ds>=t&&ds<=end;
+  if(o.shift!=="none"){for(let i=0;i<=o.range;i++){const ds=addDays(t,i);const sh=shiftOf(ds);const w=ICS_SHIFT[sh];
+    const ov=isOv(ds);if(!w)continue;if(o.shift==="ov"&&!ov)continue;
+    const s=atT(ds,w[0][0],w[0][1]);const e=atT(ds,w[1][0],w[1][1]);if(e<=s)e.setDate(e.getDate()+1);
+    let al=null;if(o.shiftAl==="eve"){const a=atT(addDays(ds,-1),21,0);al=Math.round((s-a)/6e4);}else if(o.shiftAl!=="none")al=Number(o.shiftAl);
+    items.push({uid:"shift-"+ds,title:(sh==="주"?"주간":"야간")+" 근무"+(ov?" (대근)":""),s,e,al});}}
+  if(o.tasks){const [h,m]=o.taskTime.split(":").map(Number);
+    S.tasks.filter(x=>!x.done&&x.due&&inR(x.due)).forEach(x=>{const s=atT(x.due,h,m);items.push({uid:"task-"+x.id,title:"할 일 마감: "+x.title,memo:x.memo,s,e:new Date(s.getTime()+15*6e4),al:0});});}
+  const ev=(list,pre,cat)=>list.filter(x=>x.date&&inR(x.date)).forEach(x=>{
+    if(x.time){const [h,m]=x.time.split(":").map(Number);const s=atT(x.date,h,m);items.push({uid:pre+x.id,title:(cat?"["+cat(x)+"] ":"")+x.title,memo:[x.stocks?"관련: "+x.stocks:"",x.memo||""].filter(Boolean).join("\n"),s,e:new Date(s.getTime()+60*6e4),al:Number(o.evAl)});}
+    else items.push({uid:pre+x.id,title:(cat?"["+cat(x)+"] ":"")+x.title,memo:[x.stocks?"관련: "+x.stocks:"",x.memo||""].filter(Boolean).join("\n"),allDay:x.date,al:180});});
+  if(o.shared)ev(SE,"shared-",x=>"함께");
+  if(o.stock&&workOK)ev(S.events,"stock-",x=>x.cat||"주식");
+  const now=Date.now();
+  return items.filter(it=>it.allDay||it.e.getTime()>now).map(it=>(it.sig=[it.title,it.memo||"",it.s?it.s.getTime():it.allDay,it.e?it.e.getTime():"",it.al].join("|"),it));
+}
+function icsBuild(items){
+  const now=icsStamp(new Date());
+  const L=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//sucheop//KO","CALSCALE:GREGORIAN","METHOD:PUBLISH","X-WR-CALNAME:근무·매매 수첩"];
+  items.forEach(it=>{const seq=((S.icsSent||{})[it.uid]||{}).q||0;
+    L.push("BEGIN:VEVENT","UID:"+it.uid+"@sucheop","DTSTAMP:"+now,"SEQUENCE:"+seq);
+    if(it.allDay){const d=it.allDay.replace(/-/g,"");L.push("DTSTART;VALUE=DATE:"+d,"DTEND;VALUE=DATE:"+addDays(it.allDay,1).replace(/-/g,""));}
+    else L.push("DTSTART:"+icsStamp(it.s),"DTEND:"+icsStamp(it.e));
+    L.push("SUMMARY:"+icsEsc(it.title));if(it.memo)L.push("DESCRIPTION:"+icsEsc(it.memo));
+    if(it.al!=null&&!isNaN(it.al))L.push("BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:"+icsEsc(it.title),"TRIGGER:"+(it.al<=0?"PT0M":"-PT"+it.al+"M"),"END:VALARM");
+    L.push("END:VEVENT");});
+  L.push("END:VCALENDAR");return L.map(icsFold).join("\r\n")+"\r\n";
+}
+function icsSheet(){
+  const o=icsOpt();
+  const sel=(id,cur,opts)=>`<select id="${id}">${opts.map(([v,n])=>`<option value="${v}" ${String(cur)===String(v)?"selected":""}>${n}</option>`).join("")}</select>`;
+  const ck=(id,on,txt)=>`<label class="row" style="gap:8px"><input type="checkbox" id="${id}" ${on?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">${txt}</label>`;
+  const inClaude=!!window.claude;
+  sheet(`<form class="stack" id="icForm"><h2>캘린더로 보내기</h2>
+    <p class="note">고른 일정을 알림 시간과 함께 휴대폰 캘린더에 넣어요. 알림은 캘린더가 울려 줘서 수첩을 안 켜도 돼요.</p>
+    ${inClaude?`<p class="note" style="color:var(--q1)">이 기능은 홈 화면에 설치한 수첩 앱에서 돼요. Claude 안에서는 캘린더 파일을 내려받을 수 없어요.</p>`:""}
+    <label class="field"><span class="label">기간</span>${sel("icR",o.range,[[14,"앞으로 2주"],[30,"앞으로 한 달"],[90,"앞으로 석 달"]])}</label>
+    <div class="grid2"><label class="field"><span class="label">근무</span>${sel("icSh",o.shift,[["all","주간·야간 전부"],["ov","대근만"],["none","안 보냄"]])}</label>
+      <label class="field"><span class="label">근무 알림</span>${sel("icShA",o.shiftAl,[["eve","전날 밤 9시"],[60,"1시간 전"],[120,"2시간 전"],["none","없음"]])}</label></div>
+    ${ck("icT",o.tasks,"마감 있는 할 일")}
+    <label class="field"><span class="label">할 일 알림 (마감 당일)</span><input id="icTT" type="time" value="${esc(o.taskTime)}"></label>
+    ${db?ck("icS",o.shared,"함께 보는 일정"):""}
+    ${workOK?ck("icK",o.stock,"주식 일정"):""}
+    <label class="field"><span class="label">시간 있는 일정 알림</span>${sel("icEA",o.evAl,[[10,"10분 전"],[30,"30분 전"],[60,"1시간 전"],[1440,"하루 전"]])}</label>
+    <p class="note">시간이 없는 일정은 전날 밤 9시에 알려 줘요.</p>
+    ${ck("icN",o.onlyNew,"이미 보낸 건 빼고 새로 생기거나 바뀐 것만")}
+    <div class="note" id="icMsg"></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="icClose">닫기</button><button class="primary" ${inClaude?"disabled":""}>캘린더 파일 만들기</button></div></form>`);
+  document.getElementById("icClose").onclick=closeSheet;
+  document.getElementById("icForm").onsubmit=e=>{e.preventDefault();
+    const g=id=>document.getElementById(id);
+    const n={range:Number(g("icR").value),shift:g("icSh").value,shiftAl:g("icShA").value,tasks:g("icT").checked,taskTime:g("icTT").value||"08:00",
+      shared:g("icS")?g("icS").checked:o.shared,stock:g("icK")?g("icK").checked:o.stock,evAl:Number(g("icEA").value),onlyNew:g("icN").checked};
+    S.icsOpt=n;S.icsSent=S.icsSent||{};
+    let items=icsItems(n);
+    if(n.onlyNew)items=items.filter(it=>{const p=S.icsSent[it.uid];return !p||p.h!==it.sig;});
+    const msg=g("icMsg");
+    if(!items.length){msg.textContent="새로 보낼 일정이 없어요. 전부 다시 보내려면 맨 아래 체크를 끄세요.";save();return;}
+    items.forEach(it=>{const p=S.icsSent[it.uid];if(p&&p.h!==it.sig)p.q=(p.q||0)+1;});
+    const txt=icsBuild(items);
+    items.forEach(it=>{const p=S.icsSent[it.uid]||{q:0};S.icsSent[it.uid]={h:it.sig,q:p.q||0};});
+    const cut=addDays(todayStr(),-60);Object.keys(S.icsSent).forEach(k=>{const m=k.match(/(\d{4}-\d{2}-\d{2})$/);if(m&&m[1]<cut)delete S.icsSent[k];});
+    save();
+    const blob=new Blob([txt],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download="sucheop-"+todayStr()+".ics";document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+    msg.innerHTML=`<b>${items.length}개</b>를 담은 캘린더 파일을 만들었어요.<br>`+(ios?"내려받은 파일을 열고 <b>모두 추가</b>를 누르세요.":"알림창이나 내 파일에서 내려받은 파일을 눌러 <b>삼성 캘린더</b>로 여세요.");
+  };
+}
+
+function exportSheet(){
+  const txt=JSON.stringify(S);
+  sheet(`<div class="stack"><h2>백업 복사</h2><p class="note">아래 글자를 메모장이나 옵시디언에 붙여 두면 나중에 그대로 되살릴 수 있어요.</p>
+    <textarea id="exTxt" rows="6" class="mono small" readonly>${esc(txt)}</textarea>
+    <div class="row" style="justify-content:flex-end"><button class="ghost" id="exClose">닫기</button><button class="primary" id="exCopy">복사</button></div></div>`);
+  const ta=document.getElementById("exTxt");
+  document.getElementById("exClose").onclick=closeSheet;
+  document.getElementById("exCopy").onclick=()=>{
+    const fall=()=>{ta.focus();ta.select();toast("글자를 길게 눌러 복사하세요");};
+    try{navigator.clipboard.writeText(txt).then(()=>toast("복사했어요"),fall);}catch(e){fall();}
+  };
+}
+function importSheet(){
+  sheet(`<form class="stack" id="imForm"><h2>백업 붙여넣기</h2><p class="note">지금 있는 내용은 백업 내용으로 바뀌어요.</p>
+    <textarea id="imTxt" rows="6" class="mono small" placeholder="백업 글자를 여기에 붙여넣기"></textarea>
+    <div class="note" id="imErr" style="color:var(--q1)"></div>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="imClose">닫기</button><button class="primary">되살리기</button></div></form>`);
+  document.getElementById("imClose").onclick=closeSheet;
+  document.getElementById("imForm").onsubmit=e=>{e.preventDefault();
+    try{const o=JSON.parse(document.getElementById("imTxt").value);
+      if(!o||!Array.isArray(o.tasks)||!Array.isArray(o.events))throw 0;
+      S=Object.assign(JSON.parse(JSON.stringify(DEFAULT)),o);genRecurring();save();closeSheet();if(!window.claude)enableWork(!!S.stockOn);render();toast("되살렸어요");
+    }catch(err){document.getElementById("imErr").textContent="백업 글자가 아니에요. 복사한 내용을 처음부터 끝까지 붙여넣었는지 확인해 주세요.";}};
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  if(e.target.id==="calBack"){calOpen=false;render();return;}
+  const tb=e.target.closest("[data-tab]");
+  if(tb){tab=tb.dataset.tab;calOpen=false;render();window.scrollTo(0,0);return;}
+  const el=e.target.closest("[data-act]"); if(!el) return;
+  const a=el.dataset.act, id=el.dataset.id;
+  if(a==="rchk"){const t=todayStr();const v=el.dataset.v;const arr=S.rchk[t]||[];S.rchk[t]=el.checked?[...new Set([...arr,v])]:arr.filter(x=>x!==v);save();setTimeout(render,120);return;}
+  if(a==="pstep"){const p=(S.projects||[]).find(x=>x.id===el.dataset.id);if(p){p.steps[Number(el.dataset.i)].d=el.checked;p.done=p.steps.every(x=>x.d);save();setTimeout(render,120);}return;}
+  if(a==="toggle"){const t=S.tasks.find(x=>x.id===id);if(t){t.done=el.checked;t.doneAt=el.checked?todayStr():null;save();setTimeout(render,150);}return;}
+  if(a==="editTask"){taskSheet(S.tasks.find(x=>x.id===id));}
+  else if(a==="newTask"){taskSheet(null,el.dataset.d,el.dataset.q);}
+  else if(a==="newEvent"){eventSheet(null,el.dataset.d);}
+  else if(a==="editEvent"){eventSheet(S.events.find(x=>x.id===id));}
+  else if(a==="settings"){settingsSheet();}
+  else if(a==="logSub"){logSub=el.dataset.v;render();}
+  else if(a==="stockSub"){stockSub=el.dataset.v;render();}
+  else if(a==="startCat"){startCat(el.dataset.c);}
+  else if(a==="stopRun"){stopRun();}
+  else if(a==="delLog"){if(el.dataset.sure){S.logs=S.logs.filter(l=>l.id!==id);save();render();}else{el.dataset.sure=1;el.textContent="삭제?";}}
+  else if(a==="addLog"){logSheet();}
+  else if(a==="newProj"){projSheet(null,el.dataset.k);}
+  else if(a==="editProj"){projSheet((S.projects||[]).find(x=>x.id===id));}
+  else if(a==="logCat"){logSheet(el.dataset.c);}
+  else if(a==="editLog"){logSheet(null,id);}
+  else if(a==="logNav"){const v=Number(el.dataset.v);logDate=v===0?todayStr():addDays(logDate,v);if(logDate>todayStr())logDate=todayStr();render();}
+  else if(a==="weekNav"){weekOff=Math.min(0,weekOff+Number(el.dataset.v));render();}
+  else if(a==="openDay"){logDate=el.dataset.d;logSub="day";render();window.scrollTo(0,0);}
+  else if(a==="mood"){const v=Number(el.dataset.v);setDay(logDate,{mood:dayRec(logDate).mood===v?null:v});render();}
+  else if(a==="exToggle"){setDay(logDate,{ex:!dayRec(logDate).ex});render();}
+  else if(a==="goLog"){tab="log";logSub="day";logDate=todayStr();render();window.scrollTo(0,0);}
+  else if(a==="editRoutine"){routineSheet();}
+  else if(a==="editQuotes"){quoteSheet();}
+  else if(a==="qNav"){const v=Number(el.dataset.v);qOff=v===0?0:qOff+v;render();}
+  else if(a==="mineQuote"){mineSheet(el.dataset.md);}
+  else if(a==="ansQ"){ansSheet(el.dataset.md);}
+  else if(a==="openRecur"){recurSheet();}
+  else if(a==="ovSet"){S.shiftOv=S.shiftOv||{};const v=el.dataset.v;if(v===baseShift(selDate))delete S.shiftOv[selDate];else S.shiftOv[selDate]=v;save();pushShift();render();toast(v===baseShift(selDate)?"원래 근무로 돌렸어요":"대근으로 바꿨어요");}
+  else if(a==="newShared"){sharedSheet(null,el.dataset.d);}
+  else if(a==="seenShared"){S.seenShared=Date.now();save();render();}
+  else if(a==="editShared"){sharedSheet(SE.find(x=>x.id===id));}
+  else if(a==="ovClear"){if(S.shiftOv)delete S.shiftOv[selDate];save();pushShift();render();toast("원래 근무로 돌렸어요");}
+  else if(a==="filter"){taskFilter=el.dataset.v;render();}
+  else if(a==="clearDone"){if(el.dataset.sure){S.tasks=S.tasks.filter(x=>!x.done);save();render();toast("정리했어요");}else{el.dataset.sure=1;el.textContent="한 번 더 누르면 정리";}}
+  else if(a==="pick"){selDate=el.dataset.d;const d=parseD(selDate);calMonth=[d.getFullYear(),d.getMonth()];calOpen=true;render();}
+  else if(a==="calClose"){calOpen=false;render();}
+  else if(a==="stripDay"){selDate=el.dataset.d;const d=parseD(selDate);calMonth=[d.getFullYear(),d.getMonth()];calOpen=true;tab="cal";render();window.scrollTo(0,0);}
+  else if(a==="catEdit"){catSheet();}
+  else if(a==="mon"){const v=Number(el.dataset.v);if(v===0){selDate=todayStr();calMonth=null;}else{let [y,m]=calMonth;m+=v;if(m<0){m=11;y--;}if(m>11){m=0;y++;}calMonth=[y,m];}render();}
+  else if(a==="preset"){fibForm.preset=el.dataset.v;fibForm.filled=[false,false,false];document.querySelectorAll("#fPreset button").forEach(b=>b.setAttribute("aria-pressed",String(b===el)));updateFib();}
+  else if(a==="fill"){fibForm.filled[Number(el.dataset.i)]=el.checked;updateFib();}
+  else if(a==="saveFib"){const L=num(fibForm.L),H=num(fibForm.H);if(!(L>0&&H>L))return;
+    S.fibs.push({id:uidGen(),name:(document.getElementById("fN").value||"").trim(),L,H,preset:fibForm.preset,at:todayStr()});
+    if(S.fibs.length>60)S.fibs=S.fibs.slice(-60);save();render();toast("저장했어요");}
+  else if(a==="loadFib"){const f=S.fibs.find(x=>x.id===id);if(f){fibForm.L=fmt(f.L);fibForm.H=fmt(f.H);fibForm.preset=f.preset;fibForm.filled=[false,false,false];render();document.getElementById("fN").value=f.name||"";window.scrollTo(0,0);}}
+  else if(a==="delFib"){S.fibs=S.fibs.filter(x=>x.id!==id);save();render();}
+  else if(a==="exportData"){exportSheet();}
+  else if(a==="toCal"){icsSheet();}
+  else if(a==="importOpen"){importSheet();}
+});
+document.addEventListener("input",e=>{
+  if(e.target.id==="resolve"){const ds=e.target.dataset.d,v=e.target.value.trim();S.resolve=S.resolve||{};if(v)S.resolve[ds]=v;else delete S.resolve[ds];save();return;}
+  if(e.target.id==="diary"){const ds=logDate,v=e.target.value;clearTimeout(diaryT);const st=document.getElementById("diaryState");if(st)st.textContent="저장 중…";
+    diaryT=setTimeout(()=>{setDay(ds,{diary:v});const s2=document.getElementById("diaryState");if(s2)s2.textContent="저장했어요";},600);return;}
+  if(e.target.id==="fL"||e.target.id==="fH"){
+    const raw=e.target.value.replace(/[^\d]/g,"");
+    const f=raw?Number(raw).toLocaleString("ko-KR"):"";
+    e.target.value=f;
+    fibForm[e.target.id==="fL"?"L":"H"]=f;updateFib();
+  }
+});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeSheet();});
+
+genRecurring();
+if(fixNightStart())save();
+render();
+setInterval(()=>{if(!running())return;if(!(tab==="today"||(tab==="log"&&logSub==="day")))return;if(document.getElementById("sheet"))return;const ae=document.activeElement;if(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName))return;render();},30000);
+})();
+</script>
+
+<script>if("serviceWorker" in navigator&&location.protocol.startsWith("http")){navigator.serviceWorker.register("sw.js").catch(()=>{});}
+try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}</script>
+</body></html>
