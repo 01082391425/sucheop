@@ -133,6 +133,15 @@ nav.tabs button{position:relative}
 .ev .body{flex:1;min-width:0;overflow-wrap:anywhere}
 .ev .evck{width:18px;height:18px;margin-top:3px;flex:none;accent-color:var(--accent)}
 .ev.evdone .body{opacity:.5;text-decoration:line-through}
+.bookcard{padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.btitle{font-family:var(--f-display);font-size:17px}
+.bexc{margin:4px 0 6px;font-size:14px;color:var(--muted);line-height:1.6;white-space:pre-wrap}
+.bquote{margin:2px 0;font-family:var(--f-display);font-size:16px;line-height:1.5;padding-left:10px;border-left:3px solid var(--accent)}
+.breview{white-space:pre-wrap;line-height:1.75;font-size:15px;padding:10px 12px;border-radius:10px;background:var(--surface);max-height:45vh;overflow:auto}
+.bnote{font-size:14px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line);white-space:pre-wrap}
+.bchip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.bchip.done{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.bchip.due{background:var(--accent);color:var(--bg);border-color:transparent}
 .rng{display:block;font-size:12px;font-family:var(--f-mono);color:var(--muted);margin-top:2px}
 .chip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent);margin-right:4px}
 .chip.c-실적{background:color-mix(in srgb,var(--up) 14%,transparent);color:var(--up)}
@@ -1296,9 +1305,10 @@ function stackBar(mins){const tot=sumM(mins);if(!tot)return `<div class="sbar em
   return `<div class="sbar" role="img" aria-label="시간 비율">${cats().filter(([c])=>mins[c]).map(([c,col])=>`<span style="flex:${mins[c]};background:${col}" title="${c} ${hm(mins[c])}"></span>`).join("")}</div>`;}
 
 function vLog(){
-  return head(logSub==="day"?"하루 기록":"주간 돌아보기",logSub==="day"?"시간 · 일기 · 운동":"이번 주에 뭘 얼마나 했는지")+
-  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간 돌아보기</button></div>
-  ${logSub==="day"?vDay():vWeek()}</div>`;
+  const T={day:["하루 기록","시간 · 일기"],week:["주간 돌아보기","이번 주에 뭘 얼마나 했는지"],book:["독후감","3일 · 7일 · 한 달 뒤에 다시 읽어요"]}[logSub]||["하루 기록",""];
+  return head(T[0],T[1])+
+  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간 돌아보기</button><button data-act="logSub" data-v="book" aria-pressed="${logSub==="book"}">독후감</button></div>
+  ${logSub==="day"?vDay():logSub==="book"?vBooks():vWeek()}</div>`;
 }
 /* 근무 시간 기본 기록: 주간 06:00–19:30, 야간 18:00–다음날 07:30 */
 const WORK_HOURS={"주":[[6,0],[19,30],0],"야":[[18,0],[7,30],1]};
@@ -1421,6 +1431,79 @@ function nowBlock(){const r=running();
   return r?`<button class="nowchip" data-act="goLog" style="--cc:${catColor(r.cat)}"><span class="cdot"></span>지금 <b>${esc(r.cat)}</b> <span class="mono">${hm((Date.now()-r.s)/6e4)}</span><span class="muted small" style="margin-left:auto">기록 보기 ›</span></button>`
    :`<button class="nowchip idle" data-act="goLog"><span class="cdot" style="background:var(--line)"></span>지금 하는 일을 찍어 두면 하루가 보여요<span class="muted small" style="margin-left:auto">기록 ›</span></button>`;}
 
+
+/* ---------- 독후감: 쓴 날로부터 3일·7일·한 달 뒤에 다시 보기 ---------- */
+const REV=[[3,"3일"],[7,"7일"],[30,"한 달"]];
+function bookDue(b,t){t=t||todayStr();const r=b.rev||{};return REV.filter(([n])=>!r[n]&&addDays(b.date,n)<=t);}
+function booksDue(){const t=todayStr();return (S.books||[]).filter(b=>bookDue(b,t).length).sort((a,b)=>a.date<b.date?-1:1);}
+function bookNext(b){const r=b.rev||{};const n=REV.find(([d])=>!r[d]);return n?{n:n[0],label:n[1],date:addDays(b.date,n[0])}:null;}
+function bookChips(b){const r=b.rev||{};const t=todayStr();return REV.map(([n,l])=>{const d=addDays(b.date,n);const pd=parseD(d);
+  const st=r[n]?"done":d<=t?"due":"wait";return `<span class="bchip ${st}">${l} ${st==="done"?"✓":st==="due"?"오늘 볼 차례":`${pd.getMonth()+1}/${pd.getDate()}`}</span>`;}).join("");}
+function vBooks(){
+  const list=(S.books||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  const due=booksDue();
+  return `${due.length?`<section class="panel stack newbox" style="gap:6px"><h3>다시 읽을 차례 <span class="nbadge">${due.length}</span></h3>${due.map(b=>`<button class="lrow" data-act="reviewBook" data-id="${b.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:8px 0"><span style="flex:1;min-width:0"><b>${esc(b.title)}</b><div class="small muted">${bookDue(b).map(x=>x[1]).join("·")} 뒤 다시 보기</div></span><span class="small" style="color:var(--accent)">읽기 ›</span></button>`).join("")}</section>`:""}
+  <section class="panel stack" style="gap:6px">
+    <div class="row" style="justify-content:space-between"><h3>내 독후감 <span class="label">${list.length?list.length+"권":""}</span></h3><button class="small primary" data-act="newBook">+ 독후감 쓰기</button></div>
+    <p class="note" style="margin:0">쓴 날로부터 3일, 7일, 한 달 뒤에 오늘 화면에 다시 떠요. 다시 읽을 때 새로 든 생각도 덧붙일 수 있어요.</p>
+    ${list.length?list.map(b=>{const d=parseD(b.date);return `<div class="bookcard" data-act="editBook" data-id="${b.id}">
+      <div class="row" style="justify-content:space-between;align-items:baseline"><b class="btitle">${esc(b.title)}</b><span class="small muted mono">${d.getMonth()+1}/${d.getDate()}</span></div>
+      ${b.author?`<div class="small muted">${esc(b.author)}</div>`:""}
+      <p class="bexc">${esc((b.text||"").slice(0,90))}${(b.text||"").length>90?"…":""}</p>
+      <div class="row" style="gap:4px;flex-wrap:wrap">${bookChips(b)}</div></div>`;}).join(""):`<div class="empty">아직 독후감이 없어요. 다 읽은 책이 있으면 + 독후감 쓰기를 눌러 보세요.</div>`}
+  </section>`;
+}
+function bookBlock(){
+  const due=booksDue();if(!due.length)return "";const b=due[0];const days=diffDays(todayStr(),b.date);
+  return `<section class="panel stack newbox" style="gap:6px">
+    <div class="row" style="justify-content:space-between"><h2>다시 볼 독후감 ${due.length>1?`<span class="nbadge">${due.length}</span>`:""}</h2><span class="label">${days}일 전에 쓴 글</span></div>
+    <b class="btitle">${esc(b.title)}</b>${b.author?`<div class="small muted">${esc(b.author)}</div>`:""}
+    ${b.quote?`<p class="bquote">“${esc(b.quote)}”</p>`:""}
+    <p class="bexc">${esc((b.text||"").slice(0,140))}${(b.text||"").length>140?"…":""}</p>
+    <div class="row" style="justify-content:flex-end"><button class="small primary" data-act="reviewBook" data-id="${b.id}">다시 읽기</button></div>
+  </section>`;
+}
+function bookSheet(b){
+  const isNew=!b;b=b||{title:"",author:"",date:todayStr(),quote:"",text:""};
+  const notes=(b.notes||[]).map(n=>{const d=parseD(n.d);return `<div class="bnote"><span class="label">${d.getMonth()+1}/${d.getDate()} 다시 읽고</span><div>${esc(n.t)}</div></div>`;}).join("");
+  sheet(`<form class="stack" id="bkForm"><h2>${isNew?"독후감 쓰기":"독후감"}</h2>
+    <label class="field"><span class="label">책 제목</span><input id="bkTitle" required value="${esc(b.title)}" placeholder="예: 원씽"></label>
+    <div class="grid2"><label class="field"><span class="label">지은이</span><input id="bkAuthor" value="${esc(b.author)}"></label>
+      <label class="field"><span class="label">쓴 날</span><input id="bkDate" type="date" required value="${esc(b.date)}"></label></div>
+    <label class="field"><span class="label">마음에 남은 문장 <span class="note">(선택)</span></span><textarea id="bkQuote" rows="2" placeholder="책에서 기억하고 싶은 한 문장">${esc(b.quote||"")}</textarea></label>
+    <label class="field"><span class="label">독후감</span><textarea id="bkText" rows="12" style="min-height:240px;line-height:1.7" placeholder="무엇을 느꼈는지, 내 생활에 어떻게 써먹을지 적어 보세요">${esc(b.text||"")}</textarea></label>
+    ${notes?`<div class="stack" style="gap:6px"><span class="label">다시 읽고 덧붙인 생각</span>${notes}</div>`:""}
+    ${isNew?"":`<div class="row" style="gap:4px;flex-wrap:wrap">${bookChips(b)}</div>`}
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="bkDel">삭제</button>`}
+      <div class="row"><button type="button" class="ghost" id="bkCancel">닫기</button><button class="primary">저장</button></div></div></form>`);
+  document.getElementById("bkCancel").onclick=closeSheet;
+  const del=document.getElementById("bkDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.books=S.books.filter(x=>x.id!==b.id);save();closeSheet();render();toast("지웠어요");};
+  document.getElementById("bkForm").onsubmit=ev=>{ev.preventDefault();
+    const v={title:document.getElementById("bkTitle").value.trim(),author:document.getElementById("bkAuthor").value.trim(),date:document.getElementById("bkDate").value||todayStr(),quote:document.getElementById("bkQuote").value.trim(),text:document.getElementById("bkText").value.trim()};
+    if(!v.title)return;S.books=S.books||[];
+    if(isNew){S.books.push(Object.assign({id:uidGen(),rev:{},notes:[]},v));}else Object.assign(b,v);
+    save();closeSheet();render();
+    if(isNew){const n=parseD(addDays(v.date,3));toast(`저장했어요. ${n.getMonth()+1}/${n.getDate()}에 다시 보여 줄게요`);}else toast("저장했어요");};
+}
+function reviewSheet(b){
+  if(!b)return;const due=bookDue(b);const d=parseD(b.date);
+  sheet(`<form class="stack" id="rvForm"><h2>${esc(b.title)}</h2>
+    <div class="small muted">${b.author?esc(b.author)+" · ":""}${d.getMonth()+1}/${d.getDate()}에 쓴 독후감 · ${due.length?due.map(x=>x[1]).join("·")+" 뒤 다시 보기":"다시 읽기"}</div>
+    ${b.quote?`<p class="bquote">“${esc(b.quote)}”</p>`:""}
+    <div class="breview">${esc(b.text||"")}</div>
+    ${(b.notes||[]).map(n=>{const nd=parseD(n.d);return `<div class="bnote"><span class="label">${nd.getMonth()+1}/${nd.getDate()} 다시 읽고</span><div>${esc(n.t)}</div></div>`;}).join("")}
+    <label class="field"><span class="label">다시 읽고 든 생각 <span class="note">(선택)</span></span><textarea id="rvNote" rows="3" placeholder="지금 다시 보니 어떤가요? 실제로 해 본 게 있나요?"></textarea></label>
+    <div class="row" style="gap:4px;flex-wrap:wrap">${bookChips(b)}</div>
+    <div class="row" style="justify-content:space-between"><button type="button" class="ghost small" id="rvEdit">독후감 고치기</button><div class="row"><button type="button" class="ghost" id="rvCancel">닫기</button><button class="primary">${due.length?"다시 읽었어요":"생각 저장"}</button></div></div></form>`);
+  document.getElementById("rvCancel").onclick=closeSheet;
+  document.getElementById("rvEdit").onclick=()=>bookSheet(b);
+  document.getElementById("rvForm").onsubmit=ev=>{ev.preventDefault();const t=todayStr();const note=document.getElementById("rvNote").value.trim();
+    b.rev=b.rev||{};due.forEach(([n])=>{b.rev[n]=t;});if(note){b.notes=b.notes||[];b.notes.push({d:t,t:note});}
+    save();closeSheet();render();const nx=bookNext(b);
+    if(due.length){if(nx){const nd=parseD(nx.date);toast(`다음엔 ${nd.getMonth()+1}/${nd.getDate()}(${nx.label} 뒤)에 다시 보여 줄게요`);}else toast("세 번 다 다시 읽었어요");}
+    else toast(note?"생각을 덧붙였어요":"닫았어요");};
+}
+
 /* ---------- render ---------- */
 const ICONS={
   today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
@@ -1466,6 +1549,7 @@ function vToday(){
       ${urgent.length?urgent.map(taskRow).join(""):`<div class="empty">+ 할 일을 누르면 오늘 할 일로 바로 들어가요. 지금 하기 칸이나 내일까지 마감인 일도 여기 떠요.</div>`}
     </section>
     ${routineBlock()}
+    ${bookBlock()}
     ${(()=>{const nw=newShared();return nw.length?`<section class="panel stack newbox" style="gap:2px">
       <div class="row" style="justify-content:space-between"><h2>새로 들어온 일정 <span class="nbadge">${nw.length}</span></h2><button class="small primary" data-act="seenShared">확인</button></div>
       ${nw.slice(0,5).map(shRow).join("")}</section>`:"";})()}
@@ -1956,7 +2040,7 @@ function settingsSheet(){
 
 /* ---------- 캘린더로 보내기 (.ics) ---------- */
 const ICS_SHIFT={"주":[[6,0],[19,30]],"야":[[18,0],[7,30]]};
-function icsOpt(){return Object.assign({range:30,shift:"all",shiftAl:"eve",tasks:true,taskTime:"08:00",shared:true,stock:true,evAl:60,onlyNew:true},S.icsOpt||{});}
+function icsOpt(){return Object.assign({range:30,shift:"all",shiftAl:"eve",tasks:true,taskTime:"08:00",shared:true,stock:true,books:true,evAl:60,onlyNew:true},S.icsOpt||{});}
 function icsStamp(d){return d.toISOString().replace(/[-:]/g,"").replace(/\.\d+Z$/,"Z");}
 function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/([,;])/g,"\\$1");}
 function icsFold(line){const out=[];let cur="",n=0;for(const ch of line){const b=new TextEncoder().encode(ch).length;if(n+b>73){out.push(cur);cur=" ";n=1;}cur+=ch;n+=b;}out.push(cur);return out.join("\r\n");}
@@ -1975,6 +2059,8 @@ function icsItems(o){
     if(x.time&&evEnd(x)===x.date){const [h,m]=x.time.split(":").map(Number);const s=atT(x.date,h,m);items.push({uid:pre+x.id,title:(cat?"["+cat(x)+"] ":"")+x.title,memo:[x.stocks?"관련: "+x.stocks:"",x.memo||""].filter(Boolean).join("\n"),s,e:new Date(s.getTime()+60*6e4),al:Number(o.evAl)});}
     else items.push({uid:pre+x.id,title:(cat?"["+cat(x)+"] ":"")+x.title,memo:[x.stocks?"관련: "+x.stocks:"",x.memo||""].filter(Boolean).join("\n"),allDay:x.date,allEnd:evEnd(x),al:180});});
   if(o.shared)ev(SE,"shared-",x=>"함께");
+  if(o.books)(S.books||[]).forEach(bk=>REV.forEach(([n,l])=>{if((bk.rev||{})[n])return;const ds=addDays(bk.date,n);if(!inR(ds))return;const s=atT(ds,9,0);
+    items.push({uid:"book-"+bk.id+"-"+n,title:`독후감 다시 보기: ${bk.title} (${l} 뒤)`,s,e:new Date(s.getTime()+15*6e4),al:0});}));
   if(o.stock&&workOK)ev(S.events,"stock-",x=>x.cat||"주식");
   const now=Date.now();
   return items.filter(it=>it.allDay||it.e.getTime()>now).map(it=>(it.sig=[it.title,it.memo||"",it.s?it.s.getTime():it.allDay+(it.allEnd||""),it.e?it.e.getTime():"",it.al].join("|"),it));
@@ -2003,6 +2089,7 @@ function icsSheet(){
     <div class="grid2"><label class="field"><span class="label">근무</span>${sel("icSh",o.shift,[["all","주간·야간 전부"],["ov","대근만"],["none","안 보냄"]])}</label>
       <label class="field"><span class="label">근무 알림</span>${sel("icShA",o.shiftAl,[["eve","전날 밤 9시"],[60,"1시간 전"],[120,"2시간 전"],["none","없음"]])}</label></div>
     ${ck("icT",o.tasks,"마감 있는 할 일")}
+    ${ck("icB",o.books,"독후감 다시 보기 (아침 9시)")}
     <label class="field"><span class="label">할 일 알림 (마감 당일)</span><input id="icTT" type="time" value="${esc(o.taskTime)}"></label>
     ${db?ck("icS",o.shared,"함께 보는 일정"):""}
     ${workOK?ck("icK",o.stock,"주식 일정"):""}
@@ -2014,7 +2101,7 @@ function icsSheet(){
   document.getElementById("icClose").onclick=closeSheet;
   document.getElementById("icForm").onsubmit=e=>{e.preventDefault();
     const g=id=>document.getElementById(id);
-    const n={range:Number(g("icR").value),shift:g("icSh").value,shiftAl:g("icShA").value,tasks:g("icT").checked,taskTime:g("icTT").value||"08:00",
+    const n={range:Number(g("icR").value),shift:g("icSh").value,shiftAl:g("icShA").value,tasks:g("icT").checked,books:g("icB").checked,taskTime:g("icTT").value||"08:00",
       shared:g("icS")?g("icS").checked:o.shared,stock:g("icK")?g("icK").checked:o.stock,evAl:Number(g("icEA").value),onlyNew:g("icN").checked};
     S.icsOpt=n;S.icsSent=S.icsSent||{};
     let items=icsItems(n);
@@ -2085,6 +2172,9 @@ document.addEventListener("click",e=>{
   else if(a==="editProj"){projSheet((S.projects||[]).find(x=>x.id===id));}
   else if(a==="logCat"){logSheet(el.dataset.c);}
   else if(a==="editLog"){logEditSheet(id);}
+  else if(a==="newBook"){bookSheet(null);}
+  else if(a==="editBook"){bookSheet((S.books||[]).find(x=>x.id===id));}
+  else if(a==="reviewBook"){reviewSheet((S.books||[]).find(x=>x.id===id));}
   else if(a==="logNav"){const v=Number(el.dataset.v);logDate=v===0?todayStr():addDays(logDate,v);if(logDate>todayStr())logDate=todayStr();render();}
   else if(a==="weekNav"){weekOff=Math.min(0,weekOff+Number(el.dataset.v));render();}
   else if(a==="openDay"){logDate=el.dataset.d;logSub="day";render();window.scrollTo(0,0);}
