@@ -138,6 +138,8 @@ nav.tabs button{position:relative}
 .bexc{margin:4px 0 6px;font-size:14px;color:var(--muted);line-height:1.6;white-space:pre-wrap}
 .bquote{margin:2px 0;font-family:var(--f-display);font-size:16px;line-height:1.5;padding-left:10px;border-left:3px solid var(--accent)}
 .breview{white-space:pre-wrap;line-height:1.75;font-size:15px;padding:10px 12px;border-radius:10px;background:var(--surface);max-height:45vh;overflow:auto}
+.qpage{margin-left:8px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.qrow{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--line);border-radius:10px}
 .bnote{font-size:14px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line);white-space:pre-wrap}
 .bchip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .bchip.done{background:var(--accent-soft);color:var(--accent);border-color:transparent}
@@ -1436,6 +1438,8 @@ function nowBlock(){const r=running();
 const REV=[[3,"3일"],[7,"7일"],[30,"한 달"]];
 function bookDue(b,t){t=t||todayStr();const r=b.rev||{};return REV.filter(([n])=>!r[n]&&addDays(b.date,n)<=t);}
 function booksDue(){const t=todayStr();return (S.books||[]).filter(b=>bookDue(b,t).length).sort((a,b)=>a.date<b.date?-1:1);}
+function bookQuotes(b){const q=Array.isArray(b.quotes)?b.quotes.filter(x=>x&&x.t):[];if(!q.length&&b.quote)q.push({t:b.quote,p:""});return q;}
+function quoteHtml(q){return `<p class="bquote">“${esc(q.t)}”${q.p?`<span class="qpage">p.${esc(q.p)}</span>`:""}</p>`;}
 function bookNext(b){const r=b.rev||{};const n=REV.find(([d])=>!r[d]);return n?{n:n[0],label:n[1],date:addDays(b.date,n[0])}:null;}
 function bookChips(b){const r=b.rev||{};const t=todayStr();return REV.map(([n,l])=>{const d=addDays(b.date,n);const pd=parseD(d);
   const st=r[n]?"done":d<=t?"due":"wait";return `<span class="bchip ${st}">${l} ${st==="done"?"✓":st==="due"?"오늘 볼 차례":`${pd.getMonth()+1}/${pd.getDate()}`}</span>`;}).join("");}
@@ -1448,7 +1452,7 @@ function vBooks(){
     <p class="note" style="margin:0">쓴 날로부터 3일, 7일, 한 달 뒤에 오늘 화면에 다시 떠요. 다시 읽을 때 새로 든 생각도 덧붙일 수 있어요.</p>
     ${list.length?list.map(b=>{const d=parseD(b.date);return `<div class="bookcard" data-act="editBook" data-id="${b.id}">
       <div class="row" style="justify-content:space-between;align-items:baseline"><b class="btitle">${esc(b.title)}</b><span class="small muted mono">${d.getMonth()+1}/${d.getDate()}</span></div>
-      ${b.author?`<div class="small muted">${esc(b.author)}</div>`:""}
+      ${b.author||bookQuotes(b).length?`<div class="small muted">${[b.author?esc(b.author):"",bookQuotes(b).length?`남긴 문장 ${bookQuotes(b).length}개`:""].filter(Boolean).join(" · ")}</div>`:""}
       <p class="bexc">${esc((b.text||"").slice(0,90))}${(b.text||"").length>90?"…":""}</p>
       <div class="row" style="gap:4px;flex-wrap:wrap">${bookChips(b)}</div></div>`;}).join(""):`<div class="empty">아직 독후감이 없어요. 다 읽은 책이 있으면 + 독후감 쓰기를 눌러 보세요.</div>`}
   </section>`;
@@ -1458,30 +1462,37 @@ function bookBlock(){
   return `<section class="panel stack newbox" style="gap:6px">
     <div class="row" style="justify-content:space-between"><h2>다시 볼 독후감 ${due.length>1?`<span class="nbadge">${due.length}</span>`:""}</h2><span class="label">${days}일 전에 쓴 글</span></div>
     <b class="btitle">${esc(b.title)}</b>${b.author?`<div class="small muted">${esc(b.author)}</div>`:""}
-    ${b.quote?`<p class="bquote">“${esc(b.quote)}”</p>`:""}
+    ${(()=>{const qs=bookQuotes(b);if(!qs.length)return "";const q=qs[days%qs.length];return quoteHtml(q)+(qs.length>1?`<div class="small muted">남긴 문장 ${qs.length}개 중 하나</div>`:"");})()}
     <p class="bexc">${esc((b.text||"").slice(0,140))}${(b.text||"").length>140?"…":""}</p>
     <div class="row" style="justify-content:flex-end"><button class="small primary" data-act="reviewBook" data-id="${b.id}">다시 읽기</button></div>
   </section>`;
 }
 function bookSheet(b){
-  const isNew=!b;b=b||{title:"",author:"",date:todayStr(),quote:"",text:""};
+  const isNew=!b;b=b||{title:"",author:"",date:todayStr(),quotes:[],text:""};
   const notes=(b.notes||[]).map(n=>{const d=parseD(n.d);return `<div class="bnote"><span class="label">${d.getMonth()+1}/${d.getDate()} 다시 읽고</span><div>${esc(n.t)}</div></div>`;}).join("");
   sheet(`<form class="stack" id="bkForm"><h2>${isNew?"독후감 쓰기":"독후감"}</h2>
     <label class="field"><span class="label">책 제목</span><input id="bkTitle" required value="${esc(b.title)}" placeholder="예: 원씽"></label>
     <div class="grid2"><label class="field"><span class="label">지은이</span><input id="bkAuthor" value="${esc(b.author)}"></label>
       <label class="field"><span class="label">쓴 날</span><input id="bkDate" type="date" required value="${esc(b.date)}"></label></div>
-    <label class="field"><span class="label">마음에 남은 문장 <span class="note">(선택)</span></span><textarea id="bkQuote" rows="2" placeholder="책에서 기억하고 싶은 한 문장">${esc(b.quote||"")}</textarea></label>
+    <div class="field"><span class="label">마음에 남은 문장 <span class="note">(선택, 여러 개 가능)</span></span><div class="stack" id="bkQuotes" style="gap:6px"></div>
+      <button type="button" class="small ghost" id="bkAddQ" style="align-self:flex-start">+ 문장 추가</button></div>
     <label class="field"><span class="label">독후감</span><textarea id="bkText" rows="12" style="min-height:240px;line-height:1.7" placeholder="무엇을 느꼈는지, 내 생활에 어떻게 써먹을지 적어 보세요">${esc(b.text||"")}</textarea></label>
     ${notes?`<div class="stack" style="gap:6px"><span class="label">다시 읽고 덧붙인 생각</span>${notes}</div>`:""}
     ${isNew?"":`<div class="row" style="gap:4px;flex-wrap:wrap">${bookChips(b)}</div>`}
     <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="bkDel">삭제</button>`}
       <div class="row"><button type="button" class="ghost" id="bkCancel">닫기</button><button class="primary">저장</button></div></div></form>`);
+  const qbox=document.getElementById("bkQuotes");
+  const addQ=(q)=>{q=q||{t:"",p:""};const row=document.createElement("div");row.className="qrow";
+    row.innerHTML=`<textarea rows="2" class="qt" placeholder="책에서 기억하고 싶은 문장"></textarea><div class="row" style="gap:6px"><input class="qp" inputmode="numeric" placeholder="쪽" style="width:5em"><button type="button" class="ghost small danger qdel">삭제</button></div>`;
+    row.querySelector(".qt").value=q.t;row.querySelector(".qp").value=q.p||"";row.querySelector(".qdel").onclick=()=>{row.remove();if(!qbox.children.length)addQ();};qbox.appendChild(row);return row;};
+  const qs0=bookQuotes(b);(qs0.length?qs0:[null]).forEach(q=>addQ(q));
+  document.getElementById("bkAddQ").onclick=()=>{addQ().querySelector(".qt").focus();};
   document.getElementById("bkCancel").onclick=closeSheet;
   const del=document.getElementById("bkDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.books=S.books.filter(x=>x.id!==b.id);save();closeSheet();render();toast("지웠어요");};
   document.getElementById("bkForm").onsubmit=ev=>{ev.preventDefault();
-    const v={title:document.getElementById("bkTitle").value.trim(),author:document.getElementById("bkAuthor").value.trim(),date:document.getElementById("bkDate").value||todayStr(),quote:document.getElementById("bkQuote").value.trim(),text:document.getElementById("bkText").value.trim()};
+    const v={title:document.getElementById("bkTitle").value.trim(),author:document.getElementById("bkAuthor").value.trim(),date:document.getElementById("bkDate").value||todayStr(),quotes:[...qbox.querySelectorAll(".qrow")].map(r=>({t:r.querySelector(".qt").value.trim(),p:r.querySelector(".qp").value.trim()})).filter(q=>q.t),text:document.getElementById("bkText").value.trim()};
     if(!v.title)return;S.books=S.books||[];
-    if(isNew){S.books.push(Object.assign({id:uidGen(),rev:{},notes:[]},v));}else Object.assign(b,v);
+    if(isNew){S.books.push(Object.assign({id:uidGen(),rev:{},notes:[]},v));}else{Object.assign(b,v);delete b.quote;}
     save();closeSheet();render();
     if(isNew){const n=parseD(addDays(v.date,3));toast(`저장했어요. ${n.getMonth()+1}/${n.getDate()}에 다시 보여 줄게요`);}else toast("저장했어요");};
 }
@@ -1489,7 +1500,7 @@ function reviewSheet(b){
   if(!b)return;const due=bookDue(b);const d=parseD(b.date);
   sheet(`<form class="stack" id="rvForm"><h2>${esc(b.title)}</h2>
     <div class="small muted">${b.author?esc(b.author)+" · ":""}${d.getMonth()+1}/${d.getDate()}에 쓴 독후감 · ${due.length?due.map(x=>x[1]).join("·")+" 뒤 다시 보기":"다시 읽기"}</div>
-    ${b.quote?`<p class="bquote">“${esc(b.quote)}”</p>`:""}
+    ${bookQuotes(b).map(quoteHtml).join("")}
     <div class="breview">${esc(b.text||"")}</div>
     ${(b.notes||[]).map(n=>{const nd=parseD(n.d);return `<div class="bnote"><span class="label">${nd.getMonth()+1}/${nd.getDate()} 다시 읽고</span><div>${esc(n.t)}</div></div>`;}).join("")}
     <label class="field"><span class="label">다시 읽고 든 생각 <span class="note">(선택)</span></span><textarea id="rvNote" rows="3" placeholder="지금 다시 보니 어떤가요? 실제로 해 본 게 있나요?"></textarea></label>
