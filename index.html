@@ -1273,8 +1273,15 @@ function tStr(ms){const d=new Date(ms);return String(d.getHours()).padStart(2,"0
 function dayRec(date){return S.days[date]||{};}
 function setDay(date,patch){S.days[date]=Object.assign({},S.days[date],patch);save();}
 function routineKey(sh){return S.routines[sh]?sh:(sh==="비"?"휴":sh);}
-function routineFor(date){const k=routineKey(shiftOf(date));const daily=(S.routines["매일"]||[]).filter(Boolean);const sh=(S.routines[k]||[]).filter(Boolean);
-  return {k:sh.length?k:"",items:[...new Set([...daily,...sh])]};}
+/* 루틴용 날 구분: 야간 첫날 / 야간 둘째 날 / 야간 다음 휴무 / 주 / 휴 */
+function dayKind(ds){const sh=shiftOf(ds);if(isOv(ds))return sh;const pv=shiftOf(addDays(ds,-1));
+  if(sh==="야")return pv==="야"?"야간 둘째 날":"야간 첫날";if(sh==="휴"&&pv==="야")return "야간 다음 휴무";return sh;}
+const RK_FALL={"야간 첫날":"야","야간 둘째 날":"야","야간 다음 휴무":"휴"};
+const RK_NAME=k=>k==="주"?"주간":k==="휴"?"휴무":k==="야"?"야간":k;
+function routineFor(date){const kind=dayKind(date);const has=x=>(S.routines[x]||[]).filter(Boolean).length;
+  const k=has(kind)?kind:(RK_FALL[kind]&&has(RK_FALL[kind])?RK_FALL[kind]:routineKey(kind));
+  const daily=(S.routines["매일"]||[]).filter(Boolean);const sh=(S.routines[k]||[]).filter(Boolean);
+  return {k:sh.length?kind:"",items:[...new Set([...daily,...sh])]};}
 function matchRec(r,ds){const d=parseD(ds);
   if(r.freq==="daily")return true;
   if(r.freq==="weekly")return (r.dows||[]).includes(d.getDay());
@@ -1426,7 +1433,7 @@ function mineSheet(md){const [m,dd]=md.split("-").map(Number);const e=dly(md);co
 function routineBlock(){const t=todayStr();const {k,items}=routineFor(t);const done=(S.rchk[t]||[]);
   const n=items.filter(i=>done.includes(i)).length;
   return `<section class="panel stack" style="gap:4px">
-    <div class="row" style="justify-content:space-between"><h2>오늘 루틴 <span class="sh-${k} small">${k?k+" 근무":""}</span> <span class="label">${items.length?n+"/"+items.length:""}</span></h2><button class="ghost small" data-act="editRoutine">편집</button></div>
+    <div class="row" style="justify-content:space-between"><h2>오늘 루틴 <span class="sh-${k[0]} small">${k?RK_NAME(k):""}</span> <span class="label">${items.length?n+"/"+items.length:""}</span></h2><button class="ghost small" data-act="editRoutine">편집</button></div>
     ${items.length?items.map(it=>`<label class="task ${done.includes(it)?"done":""}"><input type="checkbox" data-act="rchk" data-v="${esc(it)}" ${done.includes(it)?"checked":""}><span class="t">${esc(it)}</span></label>`).join(""):`<div class="empty">아직 루틴이 없어요. 편집을 눌러 매일 할 일이나 근무별로 챙길 일을 넣어 보세요.</div>`}
   </section>`;}
 function nowBlock(){const r=running();
@@ -1814,12 +1821,19 @@ function catSheet(){
     S.customCats=S.customCats||[];S.customCats.push(v);save();render();catSheet();toast(`${v} 항목을 추가했어요`);};
 }
 function routineSheet(){
-  const keys=["매일",...new Set(["주","야","휴",...S.shift.pattern.map(routineKey)])];
+  const keys=["매일","주","휴","야간 첫날","야간 둘째 날","야간 다음 휴무",...((S.routines["야"]||[]).filter(Boolean).length?["야"]:[])];
+  const TPL={"매일":"","주":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:00 러닝 30분\n05:30 씻기\n05:40 독서 (출근 전까지)\n22:00 전 잠자리 (6~7시간 수면)",
+    "휴":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:00 러닝 30분\n05:30 씻기\n05:40–06:40 독서\n06:40 미국시장 확인\n07:30–09:10 아이 등원 준비\n09:10 앱 만들기 or 독서\n22:00 전 잠자리 (6~7시간 수면)",
+    "야간 첫날":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:30 씻기\n05:40–06:40 독서\n06:40 미국시장 확인\n07:30–09:10 아이 등원 준비\n오후 낮잠 (야간 대비)",
+    "야간 둘째 날":"퇴근 후 푹 자기\n오후 낮잠 (야간 대비)","야간 다음 휴무":"푹 자고 회복하기\n가벼운 산책"};
   sheet(`<form class="stack" id="rtForm"><h2>오늘 루틴</h2>
-    <p class="note">한 줄에 하나씩 적어 주세요. <b>매일</b>에 적은 건 날마다, 근무별로 적은 건 그 근무 날에만 오늘 화면에 떠요. 근무가 없으면 매일 칸만 쓰면 돼요.</p>
-    ${keys.map(k=>`<label class="field"><span class="label">${k==="매일"?"<b>매일</b>":`<span class="sh-${k}">${esc(k)}</span> 근무 날`}</span><textarea data-rk="${esc(k)}" rows="3" placeholder="${k==="매일"?"예: 물 2L 마시기":""}">${esc((S.routines[k]||[]).join("\n"))}</textarea></label>`).join("")}
+    <p class="note">한 줄에 하나씩 적어 주세요. <b>매일</b>에 적은 건 날마다, 나머지는 그날에만 오늘 화면에 떠요. 근무가 없으면 매일 칸만 쓰면 돼요.</p>
+    ${workOK?`<button type="button" class="small ghost" id="rtTpl" style="align-self:flex-start">내 아침 루틴으로 채우기</button>`:""}
+    ${keys.map(k=>`<label class="field"><span class="label">${k==="매일"?"<b>매일</b> <span class=\"note\">(모든 날)</span>":k==="주"?"<span class=\"sh-주\">주간</span> 근무 날":k==="휴"?"<span class=\"sh-휴\">휴무</span> 날":k==="야"?"<span class=\"sh-야\">야간</span> (예전 칸)":k==="야간 다음 휴무"?"<span class=\"sh-휴\">야간 다음 휴무</span> (비번)":`<span class="sh-야">${esc(k)}</span>`}</span><textarea data-rk="${esc(k)}" rows="3" placeholder="${k==="매일"?"예: 물 2L 마시기":""}">${esc((S.routines[k]||[]).join("\n"))}</textarea></label>`).join("")}
     <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="rtCancel">취소</button><button class="primary">저장</button></div></form>`);
   document.getElementById("rtCancel").onclick=closeSheet;
+  const tb=document.getElementById("rtTpl");if(tb)tb.onclick=()=>{if(!tb.dataset.sure){tb.dataset.sure=1;tb.textContent="한 번 더 누르면 지금 칸을 바꿔요";return;}
+    document.querySelectorAll("[data-rk]").forEach(ta=>{const k=ta.dataset.rk;if(k in TPL&&k!=="매일")ta.value=TPL[k];});tb.textContent="채웠어요 · 확인하고 저장하세요";};
   document.getElementById("rtForm").onsubmit=e=>{e.preventDefault();
     document.querySelectorAll("[data-rk]").forEach(ta=>{S.routines[ta.dataset.rk]=ta.value.split("\n").map(s=>s.trim()).filter(Boolean);});
     save();closeSheet();render();toast("루틴을 저장했어요");};
