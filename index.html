@@ -2065,7 +2065,7 @@ function settingsSheet(){
 
 /* ---------- 캘린더로 보내기 (.ics) ---------- */
 const ICS_SHIFT={"주":[[6,0],[19,30]],"야":[[18,0],[7,30]]};
-function icsOpt(){return Object.assign({range:30,shift:"all",shiftAl:"eve",tasks:true,taskTime:"08:00",shared:true,stock:true,books:true,evAl:60,onlyNew:true},S.icsOpt||{});}
+function icsOpt(){return Object.assign({range:30,shift:"all",shiftAl:"eve",tasks:true,taskTime:"08:00",shared:true,stock:true,books:true,routine:false,evAl:60,onlyNew:true},S.icsOpt||{});}
 function icsStamp(d){return d.toISOString().replace(/[-:]/g,"").replace(/\.\d+Z$/,"Z");}
 function icsEsc(t){return String(t||"").replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/([,;])/g,"\\$1");}
 function icsFold(line){const out=[];let cur="",n=0;for(const ch of line){const b=new TextEncoder().encode(ch).length;if(n+b>73){out.push(cur);cur=" ";n=1;}cur+=ch;n+=b;}out.push(cur);return out.join("\r\n");}
@@ -2084,6 +2084,9 @@ function icsItems(o){
     if(x.time&&evEnd(x)===x.date){const [h,m]=x.time.split(":").map(Number);const s=atT(x.date,h,m);items.push({uid:pre+x.id,title:(cat?"["+cat(x)+"] ":"")+x.title,memo:[x.stocks?"관련: "+x.stocks:"",x.memo||""].filter(Boolean).join("\n"),s,e:new Date(s.getTime()+60*6e4),al:Number(o.evAl)});}
     else items.push({uid:pre+x.id,title:(cat?"["+cat(x)+"] ":"")+x.title,memo:[x.stocks?"관련: "+x.stocks:"",x.memo||""].filter(Boolean).join("\n"),allDay:x.date,allEnd:evEnd(x),al:180});});
   if(o.shared)ev(SE,"shared-",x=>"함께");
+  if(o.routine)for(let i=0;i<=o.range;i++){const ds=addDays(t,i);routineFor(ds).items.forEach(it=>{const m=it.match(/^(\d{1,2}):(\d{2})(?:\s*[–~-]\s*(\d{1,2}):(\d{2}))?\s*(.*)$/);if(!m)return;
+    const s=atT(ds,+m[1],+m[2]);let e=m[3]?atT(ds,+m[3],+m[4]):new Date(s.getTime()+10*6e4);if(e<=s)e=new Date(s.getTime()+10*6e4);
+    items.push({uid:"rt-"+ds+"-"+m[1].padStart(2,"0")+m[2],title:it,s,e,al:0});});}
   if(o.books)(S.books||[]).forEach(bk=>REV.forEach(([n,l])=>{if((bk.rev||{})[n])return;const ds=addDays(bk.date,n);if(!inR(ds))return;const s=atT(ds,9,0);
     items.push({uid:"book-"+bk.id+"-"+n,title:`독후감 다시 보기: ${bk.title} (${l} 뒤)`,s,e:new Date(s.getTime()+15*6e4),al:0});}));
   if(o.stock&&workOK)ev(S.events,"stock-",x=>x.cat||"주식");
@@ -2115,6 +2118,7 @@ function icsSheet(){
       <label class="field"><span class="label">근무 알림</span>${sel("icShA",o.shiftAl,[["eve","전날 밤 9시"],[60,"1시간 전"],[120,"2시간 전"],["none","없음"]])}</label></div>
     ${ck("icT",o.tasks,"마감 있는 할 일")}
     ${ck("icB",o.books,"독후감 다시 보기 (아침 9시)")}
+    ${ck("icRt",o.routine,"오늘 루틴 알림 (시간이 적힌 항목만, 그 시간에)")}
     <label class="field"><span class="label">할 일 알림 (마감 당일)</span><input id="icTT" type="time" value="${esc(o.taskTime)}"></label>
     ${db?ck("icS",o.shared,"함께 보는 일정"):""}
     ${workOK?ck("icK",o.stock,"주식 일정"):""}
@@ -2126,7 +2130,7 @@ function icsSheet(){
   document.getElementById("icClose").onclick=closeSheet;
   document.getElementById("icForm").onsubmit=e=>{e.preventDefault();
     const g=id=>document.getElementById(id);
-    const n={range:Number(g("icR").value),shift:g("icSh").value,shiftAl:g("icShA").value,tasks:g("icT").checked,books:g("icB").checked,taskTime:g("icTT").value||"08:00",
+    const n={range:Number(g("icR").value),shift:g("icSh").value,shiftAl:g("icShA").value,tasks:g("icT").checked,books:g("icB").checked,routine:g("icRt").checked,taskTime:g("icTT").value||"08:00",
       shared:g("icS")?g("icS").checked:o.shared,stock:g("icK")?g("icK").checked:o.stock,evAl:Number(g("icEA").value),onlyNew:g("icN").checked};
     S.icsOpt=n;S.icsSent=S.icsSent||{};
     let items=icsItems(n);
