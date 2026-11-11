@@ -1589,7 +1589,9 @@ const PUSH_SPKI="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA03dSG7vbwkGQ6wMIIMY
 const PUSH_SUB="sucheop-pushsub",PUSH_ID="sucheop-pushid",PUSH_AT="sucheop-pushat";
 function pushSubJSON(){try{return localStorage.getItem(PUSH_SUB)||"";}catch(e){return "";}}
 function pushId(){try{let i=localStorage.getItem(PUSH_ID);if(!i){i="p"+newGroupCode().replace(/-/g,"")+Date.now().toString(36);localStorage.setItem(PUSH_ID,i);}return i;}catch(e){return "";}}
-function pushOpt(){const o=Object.assign({ev:[60,1440],evDay:true,task:true,routine:true,shift:true,book:true,grat:true,rev:true,shared:true,newShared:true},S.pushOpt||{});
+function pushOpt(){const base=workOK?{ev:[60,1440],evDay:true,task:true,routine:true,shift:true,book:true,grat:true,rev:true,shared:true,newShared:true}
+    :{ev:[60,1440],evDay:true,task:false,routine:false,shift:false,book:false,grat:false,rev:false,shared:true,newShared:true};
+  const o=Object.assign(base,S.pushOpt||{});
   if(!Array.isArray(o.ev))o.ev=[Number(o.ev)||60,1440];return o;}
 const EV_OPTS=[[10,"10분 전"],[30,"30분 전"],[60,"1시간 전"],[120,"2시간 전"],[1440,"하루 전"]];
 const evLbl=m=>m>=1440?"내일":m>=60?(m/60)+"시간 뒤":m+"분 뒤";
