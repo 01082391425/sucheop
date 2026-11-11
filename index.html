@@ -1864,7 +1864,15 @@ function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate)
   ${mode==="sc"?`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${TR_SC.map(f=>fld("sc",f)).join("")}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
   :`${scView}<section class="panel stack" style="gap:10px"><h3>장 마감 복기</h3>
     <div class="field"><span class="label">시나리오대로 했나요?</span><div class="row" style="gap:6px;flex-wrap:wrap">${["그대로 했어요","일부만","지키지 못했어요","매매 안 함"].map(v=>`<button class="small ${fol===v?"primary":"ghost"}" data-act="trFollow" data-v="${v}">${v}</button>`).join("")}</div></div>
-    ${TR_RV.map(f=>fld("rv",f)).join("")}<div class="row" style="justify-content:space-between"><span class="note" id="trState">쓰는 대로 저장돼요</span><button class="ghost small" data-act="trCopy">옵시디언용 복사</button></div></section>`}`;}
+    ${TR_RV.map(f=>fld("rv",f)).join("")}<div class="row" style="justify-content:space-between"><span class="note" id="trState">쓰는 대로 저장돼요</span><span class="row" style="gap:4px"><button class="ghost small" data-act="trCopy">옵시디언용 복사</button><button class="ghost small" data-act="trCsv">엑셀로 내보내기</button></span></div></section>`}`;}
+async function trExport(){const T=S.trade||{};const days=Object.keys(T).filter(d=>trHas(T[d].sc)||trHas(T[d].rv)).sort();
+  if(!days.length){toast("내보낼 시나리오·복기가 아직 없어요");return;}
+  const q=v=>{v=String(v==null?"":v).replace(/\r/g,"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const hd=["날짜","요일",...TR_SC.map(x=>"시나리오: "+x[1]),"시나리오대로",...TR_RV.map(x=>"복기: "+x[1])];
+  const rows=days.map(d=>{const r=T[d];const sc=r.sc||{},rv=r.rv||{};return [d,WD[parseD(d).getDay()],...TR_SC.map(([k])=>sc[k]),rv.follow,...TR_RV.map(([k])=>rv[k])].map(q).join(",");});
+  const csv="\ufeff"+[hd.map(q).join(","),...rows].join("\r\n");const name=`매매노트_${days[0]}_${days[days.length-1]}.csv`;
+  try{const f=new File([csv],name,{type:"text/csv"});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);toast(`${days.length}일치를 내보냈어요`);}
 function vToday(){
   const t=todayStr(); const d=parseD(t);
   const strip=[...Array(7)].map((_,i)=>{const ds=addDays(t,i);const s=shiftOf(ds);const dd=parseD(ds);
@@ -2520,6 +2528,7 @@ document.addEventListener("click",e=>{
   else if(a==="trNav"){const v=Number(el.dataset.v);trDate=v===0?todayStr():addDays(trDate,v);trMode=null;render();}
   else if(a==="trMode"){trMode=el.dataset.v;render();}
   else if(a==="trFollow"){S.trade=S.trade||{};const r=trRec(trDate);r.rv=Object.assign({},r.rv,{follow:r.rv.follow===el.dataset.v?"":el.dataset.v});S.trade[trDate]=r;save();render();}
+  else if(a==="trCsv"){trExport();}
   else if(a==="trCopy"){const r=trRec(trDate);const L=[`# ${trDate} 매매`,"## 시나리오",...TR_SC.map(([k,lab])=>`- **${lab}**: ${String(r.sc[k]||"").trim()}`),"## 복기",`- **시나리오대로**: ${r.rv.follow||""}`,...TR_RV.map(([k,lab])=>`- **${lab}**: ${String(r.rv[k]||"").trim()}`)].join("\n");
     (navigator.clipboard?navigator.clipboard.writeText(L):Promise.reject()).then(()=>toast("복사했어요 · 옵시디언에 붙여넣으세요")).catch(()=>toast("복사가 안 됐어요"));}
   else if(a==="startCat"){startCat(el.dataset.c);}
