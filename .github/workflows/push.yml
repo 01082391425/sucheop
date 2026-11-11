@@ -1,0 +1,103 @@
+name: push-alarms
+# 근무 수첩 푸시 알림: 5분마다 Firebase에서 알림 예약을 읽어 아이폰으로 보냄
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: push-alarms
+  cancel-in-progress: false
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: send pushes
+        env:
+          PUSH_SECRET: ${{ secrets.PUSH_SECRET }}
+          FB_KEY: AIzaSyCxXKUyW6I4hAGYsApdOn23qu5pKJnFaZs
+        run: |
+          mkdir -p /tmp/push && cd /tmp/push && npm init -y >/dev/null && npm i web-push@3.6.7 >/dev/null 2>&1
+          cat > send.mjs <<'JSEOF'
+          // 근무 수첩 푸시 알림 보내기 — GitHub Actions에서 5분마다 실행
+          import webpush from "web-push";
+          import crypto from "crypto";
+          const SEC = JSON.parse(process.env.PUSH_SECRET || "{}");
+          const KEY = process.env.FB_KEY;
+          const BASE = process.env.FS_BASE || "https://firestore.googleapis.com/v1/projects/sucheop/databases/(default)/documents";
+          const DRY = process.env.DRY === "1";
+          const NOW = Number(process.env.NOW || Date.now());
+          const WINDOW = 40 * 60e3; // 늦어도 40분 안이면 보냄
+          if (!SEC.vapidPrivate || !SEC.rsaPrivatePem) { console.log("PUSH_SECRET 없음"); process.exit(0); }
+          webpush.setVapidDetails("https://01082391425.github.io/sucheop/", SEC.vapidPublic, SEC.vapidPrivate);
+
+          const q = (u) => u + (u.includes("?") ? "&" : "?") + "key=" + KEY;
+          async function list(path) { const out = []; let tok = "";
+            do { const r = await fetch(q(`${BASE}/${path}?pageSize=300${tok ? "&pageToken=" + tok : ""}`)); if (!r.ok) { console.log("list fail", path, r.status); break; }
+              const j = await r.json(); (j.documents || []).forEach(d => out.push(d)); tok = j.nextPageToken || ""; } while (tok);
+            return out; }
+          const val = (f) => !f ? undefined : f.stringValue ?? (f.integerValue !== undefined ? Number(f.integerValue) : f.doubleValue ?? f.booleanValue ?? (f.mapValue ? obj(f.mapValue.fields || {}) : f.arrayValue ? (f.arrayValue.values || []).map(val) : null));
+          const obj = (fields) => Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, val(v)]));
+          function dec(p) { const { k, iv, d } = JSON.parse(p);
+            const aes = crypto.privateDecrypt({ key: SEC.rsaPrivatePem, padding: crypto.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: "sha256" }, Buffer.from(k, "base64"));
+            const buf = Buffer.from(d, "base64"); const dc = crypto.createDecipheriv("aes-256-gcm", aes, Buffer.from(iv, "base64"));
+            dc.setAuthTag(buf.subarray(buf.length - 16)); return JSON.parse(Buffer.concat([dc.update(buf.subarray(0, buf.length - 16)), dc.final()]).toString("utf8")); }
+          const kst = (date, hm) => Date.parse(`${date}T${hm}:00+09:00`);
+          const addDays = (ds, n) => new Date(Date.parse(ds + "T12:00:00+09:00") + n * 864e5).toISOString().slice(0, 10);
+          const groupCache = {};
+          async function groupEvents(code) { if (!groupCache[code]) groupCache[code] = (await list(`groups/${code}/events`)).map(d => ({ id: d.name.split("/").pop(), ...obj(d.fields || {}) })); return groupCache[code]; }
+
+          const docs = await list("push");
+          console.log("구독", docs.length, "개");
+          for (const doc of docs) {
+            const id = doc.name.split("/").pop(); const F = obj(doc.fields || {});
+            let P; try { P = dec(F.p); } catch (e) { console.log(id, "해독 실패"); continue; }
+            const sent = new Set(JSON.parse(F.sent || "[]")); const seen = Number(F.seen || 0);
+            const due = (P.items || []).filter(i => i.t <= NOW && i.t > NOW - WINDOW && !sent.has(i.k));
+            let newSeen = seen;
+            if (P.grp && P.grp.code) {
+              const evs = await groupEvents(P.grp.code); const g = P.grp;
+              if (g.shared !== false) for (const e of evs) { if (!e.date || e.by === g.uid && false) continue;
+                const end = e.end && e.end > e.date ? e.end : e.date; let t, body;
+                const cand = [];
+                if (e.time && end === e.date) { const base = kst(e.date, e.time); for (const b of (Array.isArray(g.ev) ? g.ev : [g.ev || 60])) cand.push([base - b * 60e3, b >= 1440 ? `내일 ${e.time}` : `${e.time} · ${b >= 60 ? b / 60 + "시간 뒤" : b + "분 뒤"}`, b]); }
+                else if (g.evDay !== false) cand.push([kst(addDays(e.date, -1), "20:00"), `내일${end !== e.date ? " ~ " + end.slice(5).replace("-", "/") : ""}`, "d"]);
+                for (const [t, b0, tag] of cand) { const body = b0 + (e.byName ? " · " + e.byName : "");
+                  const k = `sh-${e.id}-${t}-${tag}`; if (t <= NOW && t > NOW - WINDOW && !sent.has(k)) due.push({ k, t, title: `👨‍👩‍👧 ${e.title}`, body }); } }
+              if (g.newShared !== false) { if (!seen) newSeen = NOW; else for (const e of evs) if ((e.at || 0) > seen && e.by !== g.uid) {
+                const k = `new-${e.id}-${e.at}`; if (!sent.has(k)) due.push({ k, t: e.at, title: `새 함께 일정: ${e.title}`, body: `${(e.date || "").slice(5).replace("-", "/")}${e.time ? " " + e.time : ""}${e.byName ? " · " + e.byName + " 님이 넣었어요" : ""}` }); }
+                newSeen = Math.max(seen, ...evs.map(e => e.at || 0), NOW - 60e3); }
+            }
+            let gone = false;
+            for (const it of due.sort((a, b) => a.t - b.t)) {
+              if (DRY) { console.log("[DRY]", id.slice(0, 6), new Date(it.t).toISOString(), it.title, "|", it.body); sent.add(it.k); continue; }
+              try { await webpush.sendNotification(P.sub, JSON.stringify({ title: it.title, body: it.body, tag: it.k }), { TTL: 3600 }); sent.add(it.k); console.log("보냄", id.slice(0, 6), it.title); }
+              catch (e) { console.log("실패", id.slice(0, 6), e.statusCode); if (e.statusCode === 404 || e.statusCode === 410) { gone = true; break; } }
+            }
+            if (gone) { if (!DRY) await fetch(q(`${BASE}/push/${id}`), { method: "DELETE" }); console.log(id.slice(0, 6), "구독 만료 → 삭제"); continue; }
+            if (due.length || newSeen !== seen) {
+              const keep = [...sent].slice(-600);
+              const body = { fields: { sent: { stringValue: JSON.stringify(keep) }, seen: { integerValue: String(newSeen) } } };
+              const r = await fetch(q(`${BASE}/push/${id}?updateMask.fieldPaths=sent&updateMask.fieldPaths=seen`), { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+              if (!r.ok) console.log("기록 실패", r.status);
+            }
+          }
+
+          JSEOF
+          node send.mjs
+      - name: keepalive (monthly commit so the schedule is not paused)
+        run: |
+          m=$(date -u +%Y-%m)
+          if [ "$(cat .github/keepalive.txt 2>/dev/null)" != "$m" ]; then
+            echo "$m" > .github/keepalive.txt
+            git config user.name "push-bot"
+            git config user.email "push-bot@users.noreply.github.com"
+            git add .github/keepalive.txt
+            git commit -m "keepalive $m" && git push || true
+          fi
