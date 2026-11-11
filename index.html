@@ -142,6 +142,10 @@ nav.tabs button{position:relative}
 .revstats div{padding:8px 4px;border-radius:10px;background:var(--surface)}
 .revstats b{display:block;font-family:var(--f-display);font-size:20px}
 .revstats span{font-size:11px;color:var(--muted)}
+.revsec{border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.revsec summary{cursor:pointer;font-weight:600;font-size:14px}
+.revrow{display:grid;grid-template-columns:70px 1fr;gap:8px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.gnum{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:12px;flex:none}
 .qpage{margin-left:8px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 .qrow{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--line);border-radius:10px}
 .bnote{font-size:14px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line);white-space:pre-wrap}
@@ -1403,6 +1407,7 @@ function vDay(){
   </section>
   <section class="panel stack" style="gap:10px">
     <h3>하루 돌아보기</h3>
+    ${gratFields(logDate)}
     <label class="field"><span class="label">일기</span><textarea id="diary" rows="12" style="min-height:260px;line-height:1.7" placeholder="오늘 어땠는지 짧게 적어 보세요">${esc(rec.diary||"")}</textarea></label>
     <div class="note" id="diaryState">${rec.diary?"저장돼 있어요":"쓰는 대로 저장돼요"}</div>
   </section>`;
@@ -1573,6 +1578,19 @@ function reviewSheet(b){
 }
 
 
+
+/* ---------- 감사일기 5가지 ---------- */
+function gratOf(ds){const g=dayRec(ds).grat;return Array.isArray(g)?g:[];}
+function gratN(ds){return gratOf(ds).filter(x=>x&&x.trim()).length;}
+function gratFields(ds){const g=gratOf(ds);
+  return `<div class="field"><span class="label">감사일기 <span class="note">${gratN(ds)}/5</span></span><div class="stack" style="gap:6px">
+    ${[0,1,2,3,4].map(i=>`<div class="row" style="gap:8px;align-items:center"><span class="gnum">${i+1}</span><input class="grat" data-d="${ds}" data-i="${i}" value="${esc(g[i]||"")}" placeholder="${["오늘 감사한 일","고마운 사람","작지만 좋았던 순간","나 자신에게 고마운 점","내일이 기대되는 이유"][i]}" style="flex:1;min-width:0"></div>`).join("")}
+  </div></div>`;}
+function gratBlock(){const t=todayStr();const n=gratN(t);
+  return `<section class="panel stack" style="gap:6px"><div class="row" style="justify-content:space-between"><h2>감사일기 <span class="label" id="gratCnt">${n}/5</span></h2>${n===5?`<span class="small" style="color:var(--accent)">오늘 다 썼어요</span>`:""}</div>
+    ${gratFields(t).replace(/^<div class="field"><span class="label">[\s\S]*?<\/span><\/span>/,'<div class="field">')}</section>`;}
+let gratT=null;
+
 /* ---------- 하지 않을 일 ---------- */
 function notdoList(){return (S.notdo||[]).filter(Boolean);}
 function notdoBlock(today){const L=notdoList();const t=todayStr();const kept=(S.nchk||{})[t]||[];
@@ -1605,17 +1623,18 @@ function revLabel(type,key){const [a,b]=revRange(type,key);const A=parseD(a),B=p
   if(type==="W")return `${A.getMonth()+1}/${A.getDate()} – ${B.getMonth()+1}/${B.getDate()} 주간`;
   if(type==="M")return `${A.getFullYear()}년 ${A.getMonth()+1}월`;
   return `${A.getFullYear()}년 ${key.endsWith("1")?"상반기 (1–6월)":"하반기 (7–12월)"}`;}
-const REV_Q={W:[["good","이번 주 잘한 것"],["bad","아쉬웠던 것"],["next","다음 주에 바꿀 것 하나"]],
-  M:[["good","이번 달 잘한 것"],["bad","아쉬웠던 것 · 반복된 실수"],["next","다음 달 집중할 것"]],
+const REV_Q={W:[["sched","내 일정 돌아보기 — 계획대로 됐나요? 무엇에 시간을 썼나요?"],["book","내 독후감 돌아보기 — 읽은 것 중 실제로 해 본 것은?"],["diary","내 일기·감사 돌아보기 — 자주 나온 감정, 고마웠던 것"],["next","다음 주에 바꿀 것 하나"]],
+  M:[["sched","이번 달 일정 돌아보기 — 잘 지킨 것, 무너진 것"],["book","이번 달 독후감 돌아보기 — 내 생활에 남은 것"],["diary","이번 달 일기·감사 돌아보기 — 반복된 생각과 감정"],["next","다음 달 집중할 것"]],
   H:[["mean","지난 6개월 가장 의미 있었던 일"],["drain","나를 지치게 한 것 · 그만둘 것"],["grow","새로 배우거나 달라진 점"],["focus","앞으로 6개월 집중할 한 가지"],["notdo","하지 않을 일에 더할 것"]]};
 function revStats(type,key){const [a,b]=revRange(type,key);const inR=d=>d&&d>=a&&d<=b;
   const done=S.tasks.filter(x=>x.done&&inR(x.doneAt));
   const evs=[...(workOK?S.events:[]),...SE].filter(e=>evIn(e,a,b)).sort(byEv);
   const by={};S.logs.filter(l=>l.e&&inR(dateOfMs(l.s))).forEach(l=>{by[l.cat]=(by[l.cat]||0)+(l.e-l.s)/6e4;});
   const top=Object.entries(by).filter(([c])=>c!=="업무"&&c!=="잠").sort((x,y)=>y[1]-x[1]).slice(0,4);
-  const books=(S.books||[]).filter(x=>inR(x.date));const dia=Object.entries(S.days||{}).filter(([d,v])=>inR(d)&&v&&v.diary&&v.diary.trim()).length;
+  const books=(S.books||[]).filter(x=>inR(x.date)).sort((x,y)=>x.date<y.date?-1:1);
+  const diaDays=Object.keys(S.days||{}).filter(d=>inR(d)&&(((S.days[d].diary||"").trim())||gratN(d))).sort();const dia=diaDays.length;
   const nd=Object.entries(S.nchk||{}).filter(([d])=>inR(d)).reduce((n,[,v])=>n+v.length,0);
-  return {done,evs,top,books,dia,nd};}
+  return {done,evs,top,books,dia,nd,diaDays};}
 function revDue(){const t=todayStr();const d=parseD(t);const dow=d.getDay();const dom=d.getDate();const mo=d.getMonth()+1;const R=S.reviews||{};const out=[];
   const chk=(type,key)=>{if(!R[type+":"+key])out.push([type,key]);};
   if(dow===0)chk("W",wStart(t));else if(dow>=1&&dow<=3)chk("W",wStart(addDays(t,-7)));
@@ -1634,18 +1653,29 @@ function vReview(){
   <section class="panel stack" style="gap:8px">
     <div class="row" style="justify-content:space-between"><button class="ghost small" data-act="revNav" data-v="-1">‹</button><h3 style="margin:0">${revLabel(revType,revKey)}</h3><button class="ghost small" data-act="revNav" data-v="1" ${isFuture?"disabled":""}>›</button></div>
     <div class="revstats">
-      <div><b>${st.done.length}</b><span>끝낸 할 일</span></div><div><b>${st.evs.length}</b><span>일정</span></div><div><b>${st.books.length}</b><span>독후감</span></div><div><b>${st.dia}</b><span>일기 쓴 날</span></div>
+      <div><b>${st.done.length}</b><span>끝낸 할 일</span></div><div><b>${st.evs.length}</b><span>일정</span></div><div><b>${st.books.length}</b><span>독후감</span></div><div><b>${st.dia}</b><span>일기·감사</span></div>
     </div>
     ${st.top.length?`<div class="small muted">시간을 많이 쓴 곳: ${st.top.map(([c,m])=>`${esc(c)} ${hm(m)}`).join(" · ")}</div>`:""}
-    ${st.evs.length?`<details><summary class="small muted">이 기간 일정 ${st.evs.length}개 보기</summary><div class="small" style="line-height:1.8;margin-top:6px">${st.evs.slice(0,40).map(e=>{const d=parseD(e.date);return `${d.getMonth()+1}/${d.getDate()} ${esc(e.title)}`;}).join("<br>")}</div></details>`:""}
-    ${st.done.length?`<details><summary class="small muted">끝낸 할 일 ${st.done.length}개 보기</summary><div class="small" style="line-height:1.8;margin-top:6px">${st.done.slice(0,40).map(x=>"✓ "+esc(x.title)).join("<br>")}</div></details>`:""}
+    ${revContent(revType,st)}
     <form class="stack" id="revForm" style="gap:8px">
       ${REV_Q[revType].map(([f,l])=>`<label class="field"><span class="label">${l}</span><textarea data-rf="${f}" rows="${revType==="H"?4:3}">${esc(cur[f]||"")}</textarea></label>`).join("")}
+      ${Object.keys(cur).filter(k=>k!=="at"&&!REV_Q[revType].some(([f])=>f===k)&&cur[k]).map(k=>`<label class="field"><span class="label">예전에 적은 내용</span><textarea data-rf="${esc(k)}" rows="2">${esc(cur[k])}</textarea></label>`).join("")}
       <div class="row" style="justify-content:space-between"><span class="small muted">${cur.at?`저장: ${bkFmt(cur.at)}`:""}</span><button class="primary">저장</button></div>
     </form>
   </section>
   ${past.length?`<section class="panel stack" style="gap:2px"><h3>지난 복기</h3>${past.map(([k,v])=>{const key=k.slice(2);const first=REV_Q[revType].map(([f])=>v[f]).find(Boolean)||"";return `<button class="lrow" data-act="revGo" data-k="${key}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 0"><span style="flex:1;min-width:0"><b>${revLabel(revType,key)}</b><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(first)}</div></span></button>`;}).join("")}</section>`:""}`;
 }
+
+function revContent(type,st){const open=type==="W"?"open":"";
+  const md=ds=>{const d=parseD(ds);return `${d.getMonth()+1}/${d.getDate()} ${WD[d.getDay()]}`;};
+  const sched=st.evs.length||st.done.length?`<details class="revsec" ${open}><summary>📅 내 일정 <span class="label">${st.evs.length}개 · 끝낸 할 일 ${st.done.length}개</span></summary>
+    ${st.evs.map(e=>`<div class="revrow"><span class="mono small muted">${md(e.date)}</span><span>${esc(e.title)}${e.memo?`<div class="small muted">${esc(e.memo)}</div>`:""}</span></div>`).join("")}
+    ${st.done.length?`<div class="revrow"><span class="mono small muted">끝낸 일</span><span class="small">${st.done.slice(0,60).map(x=>"✓ "+esc(x.title)).join("<br>")}</span></div>`:""}</details>`:`<div class="small muted">📅 이 기간 일정이 없어요</div>`;
+  const books=st.books.length?`<details class="revsec" ${open}><summary>📖 내 독후감 <span class="label">${st.books.length}권</span></summary>
+    ${st.books.map(b=>{const q=bookQuotes(b)[0];return `<div class="revrow" data-act="editBook" data-id="${b.id}" style="cursor:pointer"><span class="mono small muted">${md(b.date)}</span><span><b>${esc(b.title)}</b>${b.author?` <span class="small muted">${esc(b.author)}</span>`:""}${q?`<div class="small">“${esc(q.t)}”</div>`:""}<div class="small muted" style="white-space:pre-wrap">${esc((b.text||"").slice(0,200))}${(b.text||"").length>200?"…":""}</div>${(b.notes||[]).length?`<div class="small">다시 읽고: ${esc(b.notes[b.notes.length-1].t)}</div>`:""}</span></div>`;}).join("")}</details>`:`<div class="small muted">📖 이 기간 독후감이 없어요</div>`;
+  const dias=st.diaDays.length?`<details class="revsec" ${open}><summary>📝 내 일기 · 감사 <span class="label">${st.diaDays.length}일</span></summary>
+    ${st.diaDays.map(ds=>{const r=dayRec(ds);const g=gratOf(ds).filter(x=>x&&x.trim());return `<div class="revrow"><span class="mono small muted">${md(ds)}</span><span>${g.length?`<div class="small" style="color:var(--accent)">감사: ${g.map(esc).join(" · ")}</div>`:""}${(r.diary||"").trim()?`<div style="white-space:pre-wrap;font-size:14px;line-height:1.6">${esc(r.diary)}</div>`:""}</span></div>`;}).join("")}</details>`:`<div class="small muted">📝 이 기간 일기와 감사일기가 없어요</div>`;
+  return `<div class="stack" style="gap:6px">${sched}${books}${dias}</div>`;}
 function bindReview(){const f=document.getElementById("revForm");if(!f)return;
   f.onsubmit=e=>{e.preventDefault();const v={at:Date.now()};f.querySelectorAll("[data-rf]").forEach(t=>{v[t.dataset.rf]=t.value.trim();});
     S.reviews=S.reviews||{};const k=revType+":"+revKey;
@@ -1703,6 +1733,7 @@ function vToday(){
     ${notdoBlock(true)}
     ${revBlock()}
     ${bookBlock()}
+    ${gratBlock()}
     ${(()=>{const nw=newShared();return nw.length?`<section class="panel stack newbox" style="gap:2px">
       <div class="row" style="justify-content:space-between"><h2>새로 들어온 일정 <span class="nbadge">${nw.length}</span></h2><button class="small primary" data-act="seenShared">확인</button></div>
       ${nw.slice(0,5).map(shRow).join("")}</section>`:"";})()}
@@ -2385,6 +2416,9 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("input",e=>{
   if(e.target.id==="resolve"){const ds=e.target.dataset.d,v=e.target.value.trim();S.resolve=S.resolve||{};if(v)S.resolve[ds]=v;else delete S.resolve[ds];save();return;}
+  if(e.target.classList&&e.target.classList.contains("grat")){const ds=e.target.dataset.d;clearTimeout(gratT);
+    gratT=setTimeout(()=>{const g=[...gratOf(ds)];while(g.length<5)g.push("");document.querySelectorAll(`input.grat[data-d="${ds}"]`).forEach(x=>{g[Number(x.dataset.i)]=x.value;});
+      setDay(ds,{grat:g});const c=document.getElementById("gratCnt");if(c)c.textContent=gratN(ds)+"/5";},500);return;}
   if(e.target.id==="diary"){const ds=logDate,v=e.target.value;clearTimeout(diaryT);const st=document.getElementById("diaryState");if(st)st.textContent="저장 중…";
     diaryT=setTimeout(()=>{setDay(ds,{diary:v});const s2=document.getElementById("diaryState");if(s2)s2.textContent="저장했어요";},600);return;}
   if(e.target.id==="fL"||e.target.id==="fH"){
