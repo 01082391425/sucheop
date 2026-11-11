@@ -138,6 +138,10 @@ nav.tabs button{position:relative}
 .bexc{margin:4px 0 6px;font-size:14px;color:var(--muted);line-height:1.6;white-space:pre-wrap}
 .bquote{margin:2px 0;font-family:var(--f-display);font-size:16px;line-height:1.5;padding-left:10px;border-left:3px solid var(--accent)}
 .breview{white-space:pre-wrap;line-height:1.75;font-size:15px;padding:10px 12px;border-radius:10px;background:var(--surface);max-height:45vh;overflow:auto}
+.revstats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center}
+.revstats div{padding:8px 4px;border-radius:10px;background:var(--surface)}
+.revstats b{display:block;font-family:var(--f-display);font-size:20px}
+.revstats span{font-size:11px;color:var(--muted)}
 .qpage{margin-left:8px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 .qrow{display:flex;flex-direction:column;gap:4px;padding:8px;border:1px solid var(--line);border-radius:10px}
 .bnote{font-size:14px;padding:8px 10px;border-radius:8px;border:1px dashed var(--line);white-space:pre-wrap}
@@ -305,6 +309,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;",
 let saveT=null;
 function save(){
   try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}
+  if(typeof bkSchedule==="function")try{bkSchedule();}catch(e){}
   clearTimeout(saveT);
   saveT=setTimeout(pushRemote,700);
 }
@@ -320,7 +325,7 @@ function syncLabel(){return {local:"이 기기에 저장",synced:"계정에 저�
 
 (async function initRemote(){
   try{
-    if(!window.claude||!window.claude.use){setTimeout(()=>{enableWork(!!S.stockOn);initGroup();},0);return;}
+    if(!window.claude||!window.claude.use){setTimeout(()=>{enableWork(!!S.stockOn);initGroup();if(bkCode()&&Date.now()-bkAt()>6*3600e3)setTimeout(()=>backupNow(false),3000);},0);return;}
     const [d,u]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
     if(!d||!u){enableWork(true);return;}
     const id=await u.id(); if(!id){enableWork(true);return;}
@@ -356,6 +361,53 @@ function fbAdapter(fs,code){
       return {add:v=>c.add(v),onSnapshot:(f,err)=>c.onSnapshot(q=>f({docs:q.docs.map(d=>({id:d.id,data:()=>d.data()}))}),err)};}
   };
 }
+let _fs=null,_fsP=null;
+function fbFS(){if(_fs)return Promise.resolve(_fs);if(_fsP)return _fsP;
+  _fsP=(async()=>{await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app-compat.js`);
+    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore-compat.js`);
+    if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);const f=firebase.firestore();
+    try{await f.enablePersistence({synchronizeTabs:true});}catch(e){}_fs=f;return f;})();
+  _fsP.catch(()=>{_fsP=null;});return _fsP;}
+/* ---------- 자동 백업 (홈 화면 앱) ---------- */
+const BK_KEY="sucheop-bkcode",BK_AT="sucheop-bkat";
+function bkCode(){try{return localStorage.getItem(BK_KEY)||"";}catch(e){return "";}}
+function bkAt(){try{return Number(localStorage.getItem(BK_AT))||0;}catch(e){return 0;}}
+function bkFmt(ms){if(!ms)return "아직 없음";const d=new Date(ms);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;}
+let bkT=null,bkBusy=false,bkErr="";
+function bkSchedule(){if(!IS_APP||!bkCode()||!FB_CONFIG)return;clearTimeout(bkT);bkT=setTimeout(()=>backupNow(false),20000);}
+async function backupNow(loud){const code=bkCode();if(!code||bkBusy)return false;bkBusy=true;
+  try{const fs=await fbFS();const st=JSON.stringify(S);if(st.length>900000)throw new Error("too big");
+    await fs.collection("backups").doc(code).set({state:st,at:Date.now(),v:1});try{localStorage.setItem(BK_AT,String(Date.now()));}catch(e){}bkErr="";
+    if(loud)toast("백업했어요");return true;}
+  catch(e){bkErr=e&&e.message==="too big"?"기록이 너무 많아 백업이 안 돼요":"인터넷에 연결되면 백업돼요";if(loud)toast(bkErr);return false;}
+  finally{bkBusy=false;}}
+function bkTurnOn(){if(bkCode())return;const c="bk-"+newGroupCode();try{localStorage.setItem(BK_KEY,c);}catch(e){}backupNow(false).then(ok=>{render();});bkSheet(true);}
+async function bkRestore(code){code=(code||"").trim().toLowerCase().replace(/\s+/g,"");if(code.length<24){toast("백업 코드를 다시 확인해 주세요");return;}
+  try{const fs=await fbFS();const d=await fs.collection("backups").doc(code).get({source:"server"});if(!d.exists){toast("그 코드로 저장된 백업이 없어요");return;}
+    const o=JSON.parse(d.data().state);if(!o||!Array.isArray(o.tasks)){toast("백업 내용을 읽지 못했어요");return;}
+    S=Object.assign(JSON.parse(JSON.stringify(DEFAULT)),o);try{localStorage.setItem(BK_KEY,code);localStorage.setItem(BK_AT,String(d.data().at||Date.now()));}catch(e){}
+    try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}toast(`${bkFmt(d.data().at)} 백업으로 되살렸어요`);setTimeout(()=>location.reload(),900);}
+  catch(e){toast("인터넷 연결을 확인해 주세요");}}
+function bkSheet(fresh){const c=bkCode();
+  sheet(`<div class="stack"><h2>${fresh?"자동 백업을 켰어요":"자동 백업"}</h2>
+    <p class="note">할 일, 기록, 일기, 독후감, 루틴, 설정을 모두 서버에 자동으로 저장해요. 고친 뒤 20초쯤 지나면 백업돼요. 폰을 바꾸거나 앱이 지워져도 <b>백업 코드</b>만 있으면 되살릴 수 있어요.</p>
+    ${c?`<div class="field"><span class="label">내 백업 코드</span><div class="mono" style="padding:10px;border:1px solid var(--line);border-radius:10px;word-break:break-all">${esc(c)}</div></div>
+    <p class="note" style="color:var(--q1)">이 코드는 꼭 따로 보관해 주세요. 카톡 '나와의 채팅'에 보내 두면 좋아요. 코드를 아는 사람은 내 기록을 볼 수 있으니 다른 사람에게는 알려 주지 마세요.</p>
+    <div class="row" style="gap:6px;flex-wrap:wrap"><button class="small primary" id="bkCopy">코드 복사해서 보관</button><button class="small" id="bkNow">지금 백업</button></div>
+    <div class="note">마지막 백업: ${bkFmt(bkAt())}${bkErr?` · ${esc(bkErr)}`:""}</div>`:`<button class="primary" id="bkOn">자동 백업 켜기</button>`}
+    <div class="stack" style="gap:6px;border-top:1px solid var(--line);padding-top:12px"><span class="label">다른 폰의 백업 불러오기</span>
+      <div class="row" style="gap:6px"><input id="bkIn" class="mono" style="flex:1;min-width:0" placeholder="bk-로 시작하는 백업 코드"><button class="small" id="bkLoad">불러오기</button></div>
+      <p class="note">불러오면 이 폰의 지금 내용은 백업 내용으로 바뀌어요.</p></div>
+    <div class="row" style="justify-content:flex-end"><button class="ghost" id="bkClose">닫기</button></div></div>`);
+  const g=id=>document.getElementById(id);
+  g("bkClose").onclick=closeSheet;
+  if(g("bkOn"))g("bkOn").onclick=()=>bkTurnOn();
+  if(g("bkNow"))g("bkNow").onclick=async()=>{await backupNow(true);bkSheet(false);};
+  if(g("bkCopy"))g("bkCopy").onclick=()=>{const msg=`근무 수첩 백업 코드 (남에게 알려 주지 마세요)\n${c}`;if(navigator.share)navigator.share({text:msg}).catch(()=>{});else{try{navigator.clipboard.writeText(msg).then(()=>toast("복사했어요"));}catch(e){}}};
+  const ld=g("bkLoad");ld.onclick=()=>{if(!ld.dataset.sure){ld.dataset.sure=1;ld.textContent="한 번 더 누르면 불러와요";return;}bkRestore(g("bkIn").value);};
+}
+function bkBanner(){if(!IS_APP||!FB_CONFIG)return "";if(!bkCode())return `<button class="nowchip" data-act="bkOpen" style="border-color:var(--q1)"><span class="cdot" style="background:var(--q1)"></span>자동 백업이 꺼져 있어요 <b style="margin-left:auto">켜기 ›</b></button>`;
+  return "";}
 async function initGroup(){
   const gp=S.grp||{};if(!gp.code||!FB_CONFIG)return;
   try{const c=JSON.parse(localStorage.getItem("sucheop-se")||"[]");if(Array.isArray(c)&&!SE.length)SE=c;}catch(e){}
@@ -363,11 +415,7 @@ async function initGroup(){
   db={_pending:true,doc:()=>({get:async()=>({exists:false}),set:async()=>{throw 0;},delete:async()=>{throw 0;},onSnapshot:()=>()=>{}}),collection:()=>({add:async()=>{throw 0;},onSnapshot:()=>()=>{}})};
   uid=appUid();render();
   try{
-    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app-compat.js`);
-    await loadScript(`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-firestore-compat.js`);
-    if(!firebase.apps.length)firebase.initializeApp(FB_CONFIG);
-    const fs=firebase.firestore();
-    try{await fs.enablePersistence({synchronizeTabs:true});}catch(e){}
+    const fs=await fbFS();
     db=fbAdapter(fs,gp.code);
     const ref=db.doc("shared/config");
     ref.onSnapshot(snap=>{if(!snap.exists||!(S.grp&&S.grp.followShift))return;try{const v=JSON.parse(snap.data().shift);S.shift=v.shift;S.shiftOv=v.shiftOv||{};try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}}catch(e){}render();},()=>{});
@@ -1314,10 +1362,10 @@ function stackBar(mins){const tot=sumM(mins);if(!tot)return `<div class="sbar em
   return `<div class="sbar" role="img" aria-label="시간 비율">${cats().filter(([c])=>mins[c]).map(([c,col])=>`<span style="flex:${mins[c]};background:${col}" title="${c} ${hm(mins[c])}"></span>`).join("")}</div>`;}
 
 function vLog(){
-  const T={day:["하루 기록","시간 · 일기"],week:["주간 돌아보기","이번 주에 뭘 얼마나 했는지"],book:["독후감","3일 · 7일 · 한 달 뒤에 다시 읽어요"]}[logSub]||["하루 기록",""];
+  const T={day:["하루 기록","시간 · 일기"],week:["주간 돌아보기","이번 주에 뭘 얼마나 했는지"],book:["독후감","3일 · 7일 · 한 달 뒤에 다시 읽어요"],rev:["복기","주간 · 월간 · 반년 인생 돌아보기"]}[logSub]||["하루 기록",""];
   return head(T[0],T[1])+
-  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간 돌아보기</button><button data-act="logSub" data-v="book" aria-pressed="${logSub==="book"}">독후감</button></div>
-  ${logSub==="day"?vDay():logSub==="book"?vBooks():vWeek()}</div>`;
+  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간 돌아보기</button><button data-act="logSub" data-v="book" aria-pressed="${logSub==="book"}">독후감</button><button data-act="logSub" data-v="rev" aria-pressed="${logSub==="rev"}">복기</button></div>
+  ${logSub==="day"?vDay():logSub==="book"?vBooks():logSub==="rev"?vReview():vWeek()}</div>`;
 }
 /* 근무 시간 기본 기록: 주간 06:00–19:30, 야간 18:00–다음날 07:30 */
 const WORK_HOURS={"주":[[6,0],[19,30],0],"야":[[18,0],[7,30],1]};
@@ -1483,6 +1531,7 @@ function bookSheet(b){
       <label class="field"><span class="label">쓴 날</span><input id="bkDate" type="date" required value="${esc(b.date)}"></label></div>
     <div class="field"><span class="label">마음에 남은 문장 <span class="note">(선택, 여러 개 가능)</span></span><div class="stack" id="bkQuotes" style="gap:6px"></div>
       <button type="button" class="small ghost" id="bkAddQ" style="align-self:flex-start">+ 문장 추가</button></div>
+    <label class="field"><span class="label">글쓴이는 어떤 사람인가요 <span class="note">(선택)</span></span><textarea id="bkWho" rows="3" placeholder="어떤 삶을 살았고, 왜 이 책을 썼을까요? 글에서 느껴지는 사람됨은?">${esc(b.who||"")}</textarea></label>
     <label class="field"><span class="label">독후감</span><textarea id="bkText" rows="12" style="min-height:240px;line-height:1.7" placeholder="무엇을 느꼈는지, 내 생활에 어떻게 써먹을지 적어 보세요">${esc(b.text||"")}</textarea></label>
     ${notes?`<div class="stack" style="gap:6px"><span class="label">다시 읽고 덧붙인 생각</span>${notes}</div>`:""}
     ${isNew?"":`<div class="row" style="gap:4px;flex-wrap:wrap">${bookChips(b)}</div>`}
@@ -1497,7 +1546,7 @@ function bookSheet(b){
   document.getElementById("bkCancel").onclick=closeSheet;
   const del=document.getElementById("bkDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.books=S.books.filter(x=>x.id!==b.id);save();closeSheet();render();toast("지웠어요");};
   document.getElementById("bkForm").onsubmit=ev=>{ev.preventDefault();
-    const v={title:document.getElementById("bkTitle").value.trim(),author:document.getElementById("bkAuthor").value.trim(),date:document.getElementById("bkDate").value||todayStr(),quotes:[...qbox.querySelectorAll(".qrow")].map(r=>({t:r.querySelector(".qt").value.trim(),p:r.querySelector(".qp").value.trim()})).filter(q=>q.t),text:document.getElementById("bkText").value.trim()};
+    const v={title:document.getElementById("bkTitle").value.trim(),author:document.getElementById("bkAuthor").value.trim(),date:document.getElementById("bkDate").value||todayStr(),quotes:[...qbox.querySelectorAll(".qrow")].map(r=>({t:r.querySelector(".qt").value.trim(),p:r.querySelector(".qp").value.trim()})).filter(q=>q.t),who:document.getElementById("bkWho").value.trim(),text:document.getElementById("bkText").value.trim()};
     if(!v.title)return;S.books=S.books||[];
     if(isNew){S.books.push(Object.assign({id:uidGen(),rev:{},notes:[]},v));}else{Object.assign(b,v);delete b.quote;}
     save();closeSheet();render();
@@ -1508,6 +1557,7 @@ function reviewSheet(b){
   sheet(`<form class="stack" id="rvForm"><h2>${esc(b.title)}</h2>
     <div class="small muted">${b.author?esc(b.author)+" · ":""}${d.getMonth()+1}/${d.getDate()}에 쓴 독후감 · ${due.length?due.map(x=>x[1]).join("·")+" 뒤 다시 보기":"다시 읽기"}</div>
     ${bookQuotes(b).map(quoteHtml).join("")}
+    ${b.who?`<div class="bnote" style="border-style:solid"><span class="label">글쓴이는 어떤 사람</span><div>${esc(b.who)}</div></div>`:""}
     <div class="breview">${esc(b.text||"")}</div>
     ${(b.notes||[]).map(n=>{const nd=parseD(n.d);return `<div class="bnote"><span class="label">${nd.getMonth()+1}/${nd.getDate()} 다시 읽고</span><div>${esc(n.t)}</div></div>`;}).join("")}
     <label class="field"><span class="label">다시 읽고 든 생각 <span class="note">(선택)</span></span><textarea id="rvNote" rows="3" placeholder="지금 다시 보니 어떤가요? 실제로 해 본 게 있나요?"></textarea></label>
@@ -1521,6 +1571,87 @@ function reviewSheet(b){
     if(due.length){if(nx){const nd=parseD(nx.date);toast(`다음엔 ${nd.getMonth()+1}/${nd.getDate()}(${nx.label} 뒤)에 다시 보여 줄게요`);}else toast("세 번 다 다시 읽었어요");}
     else toast(note?"생각을 덧붙였어요":"닫았어요");};
 }
+
+
+/* ---------- 하지 않을 일 ---------- */
+function notdoList(){return (S.notdo||[]).filter(Boolean);}
+function notdoBlock(today){const L=notdoList();const t=todayStr();const kept=(S.nchk||{})[t]||[];
+  if(today&&!L.length)return "";
+  return `<section class="panel stack" style="gap:4px">
+    <div class="row" style="justify-content:space-between"><h2>${today?"오늘 하지 않을 일":"하지 않을 일"} ${today&&L.length?`<span class="label">${kept.filter(x=>L.includes(x)).length}/${L.length} 지켰어요</span>`:""}</h2><button class="ghost small" data-act="editNotdo">편집</button></div>
+    ${L.length?L.map(it=>today?`<label class="task ${kept.includes(it)?"done":""}"><input type="checkbox" data-act="nchk" data-v="${esc(it)}" ${kept.includes(it)?"checked":""}><span class="t">🚫 ${esc(it)}</span></label>`:`<div class="lrow"><span>🚫 ${esc(it)}</span></div>`).join(""):`<div class="empty">하지 않기로 한 일을 적어 두면 오늘 화면에서 매일 체크할 수 있어요. 예: 출근 전 휴대폰 30분 이상 보지 않기</div>`}
+  </section>`;}
+function notdoSheet(){
+  sheet(`<form class="stack" id="ndForm"><h2>하지 않을 일</h2>
+    <p class="note">한 줄에 하나씩 적어 주세요. 오늘 화면에 뜨고, 하루를 마치며 지킨 것에 체크하면 돼요.</p>
+    <textarea id="ndTxt" rows="8" placeholder="예: 자기 전 휴대폰 보지 않기\n충동 매수하지 않기\n야간 다음 날 무리한 약속 잡지 않기">${esc(notdoList().join("\n"))}</textarea>
+    <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="ndCancel">취소</button><button class="primary">저장</button></div></form>`);
+  document.getElementById("ndCancel").onclick=closeSheet;
+  document.getElementById("ndForm").onsubmit=e=>{e.preventDefault();S.notdo=document.getElementById("ndTxt").value.split("\n").map(x=>x.trim()).filter(Boolean);save();closeSheet();render();toast("저장했어요");};
+}
+
+/* ---------- 복기: 주간 · 월간 · 반년(인생) ---------- */
+let revType="W",revKey=null;
+function wStart(ds){const d=parseD(ds);const k=(d.getDay()+6)%7;return addDays(ds,-k);}
+function revRange(type,key){
+  if(type==="W"){return [key,addDays(key,6)];}
+  if(type==="M"){const [y,m]=key.split("-").map(Number);const last=new Date(y,m,0).getDate();return [`${key}-01`,`${key}-${String(last).padStart(2,"0")}`];}
+  const [y,h]=key.split("-H");return h==="1"?[`${y}-01-01`,`${y}-06-30`]:[`${y}-07-01`,`${y}-12-31`];}
+function revKeyOf(type,ds){if(type==="W")return wStart(ds);if(type==="M")return ds.slice(0,7);return ds.slice(0,4)+"-H"+(Number(ds.slice(5,7))<=6?1:2);}
+function revShift(type,key,n){if(type==="W")return addDays(key,7*n);
+  if(type==="M"){const [y,m]=key.split("-").map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;}
+  let [y,h]=key.split("-H").map(Number);let i=y*2+(h-1)+n;return `${Math.floor(i/2)}-H${i%2+1}`;}
+function revLabel(type,key){const [a,b]=revRange(type,key);const A=parseD(a),B=parseD(b);
+  if(type==="W")return `${A.getMonth()+1}/${A.getDate()} – ${B.getMonth()+1}/${B.getDate()} 주간`;
+  if(type==="M")return `${A.getFullYear()}년 ${A.getMonth()+1}월`;
+  return `${A.getFullYear()}년 ${key.endsWith("1")?"상반기 (1–6월)":"하반기 (7–12월)"}`;}
+const REV_Q={W:[["good","이번 주 잘한 것"],["bad","아쉬웠던 것"],["next","다음 주에 바꿀 것 하나"]],
+  M:[["good","이번 달 잘한 것"],["bad","아쉬웠던 것 · 반복된 실수"],["next","다음 달 집중할 것"]],
+  H:[["mean","지난 6개월 가장 의미 있었던 일"],["drain","나를 지치게 한 것 · 그만둘 것"],["grow","새로 배우거나 달라진 점"],["focus","앞으로 6개월 집중할 한 가지"],["notdo","하지 않을 일에 더할 것"]]};
+function revStats(type,key){const [a,b]=revRange(type,key);const inR=d=>d&&d>=a&&d<=b;
+  const done=S.tasks.filter(x=>x.done&&inR(x.doneAt));
+  const evs=[...(workOK?S.events:[]),...SE].filter(e=>evIn(e,a,b)).sort(byEv);
+  const by={};S.logs.filter(l=>l.e&&inR(dateOfMs(l.s))).forEach(l=>{by[l.cat]=(by[l.cat]||0)+(l.e-l.s)/6e4;});
+  const top=Object.entries(by).filter(([c])=>c!=="업무"&&c!=="잠").sort((x,y)=>y[1]-x[1]).slice(0,4);
+  const books=(S.books||[]).filter(x=>inR(x.date));const dia=Object.entries(S.days||{}).filter(([d,v])=>inR(d)&&v&&v.diary&&v.diary.trim()).length;
+  const nd=Object.entries(S.nchk||{}).filter(([d])=>inR(d)).reduce((n,[,v])=>n+v.length,0);
+  return {done,evs,top,books,dia,nd};}
+function revDue(){const t=todayStr();const d=parseD(t);const dow=d.getDay();const dom=d.getDate();const mo=d.getMonth()+1;const R=S.reviews||{};const out=[];
+  const chk=(type,key)=>{if(!R[type+":"+key])out.push([type,key]);};
+  if(dow===0)chk("W",wStart(t));else if(dow>=1&&dow<=3)chk("W",wStart(addDays(t,-7)));
+  const last=new Date(d.getFullYear(),mo,0).getDate();if(dom>=last-1)chk("M",t.slice(0,7));else if(dom<=5)chk("M",revShift("M",t.slice(0,7),-1));
+  if((mo===6||mo===12)&&dom>=25)chk("H",revKeyOf("H",t));else if((mo===1||mo===7)&&dom<=10)chk("H",revShift("H",revKeyOf("H",t),-1));
+  return out;}
+function revBlock(){const due=revDue();if(!due.length)return "";const N={W:"주간 복기",M:"월간 복기",H:"반년 인생 복기"};
+  return `<section class="panel stack newbox" style="gap:6px"><h2>복기할 시간</h2>
+    ${due.map(([ty,k])=>`<button class="lrow" data-act="openReview" data-ty="${ty}" data-k="${k}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 0"><span style="flex:1"><b>${N[ty]}</b><div class="small muted">${revLabel(ty,k)}</div></span><span class="small" style="color:var(--accent)">쓰기 ›</span></button>`).join("")}</section>`;}
+function vReview(){
+  if(!revKey){const d=revDue().find(x=>x[0]===revType);revKey=d?d[1]:revKeyOf(revType,todayStr());}
+  const R=S.reviews||{};const cur=R[revType+":"+revKey]||{};const st=revStats(revType,revKey);
+  const isFuture=revRange(revType,revKey)[0]>todayStr();
+  const past=Object.entries(R).filter(([k])=>k.startsWith(revType+":")).sort((x,y)=>x[0]<y[0]?1:-1);
+  return `<div class="toggle"><button data-act="revType" data-v="W" aria-pressed="${revType==="W"}">주간</button><button data-act="revType" data-v="M" aria-pressed="${revType==="M"}">월간</button><button data-act="revType" data-v="H" aria-pressed="${revType==="H"}">반년 · 인생</button></div>
+  <section class="panel stack" style="gap:8px">
+    <div class="row" style="justify-content:space-between"><button class="ghost small" data-act="revNav" data-v="-1">‹</button><h3 style="margin:0">${revLabel(revType,revKey)}</h3><button class="ghost small" data-act="revNav" data-v="1" ${isFuture?"disabled":""}>›</button></div>
+    <div class="revstats">
+      <div><b>${st.done.length}</b><span>끝낸 할 일</span></div><div><b>${st.evs.length}</b><span>일정</span></div><div><b>${st.books.length}</b><span>독후감</span></div><div><b>${st.dia}</b><span>일기 쓴 날</span></div>
+    </div>
+    ${st.top.length?`<div class="small muted">시간을 많이 쓴 곳: ${st.top.map(([c,m])=>`${esc(c)} ${hm(m)}`).join(" · ")}</div>`:""}
+    ${st.evs.length?`<details><summary class="small muted">이 기간 일정 ${st.evs.length}개 보기</summary><div class="small" style="line-height:1.8;margin-top:6px">${st.evs.slice(0,40).map(e=>{const d=parseD(e.date);return `${d.getMonth()+1}/${d.getDate()} ${esc(e.title)}`;}).join("<br>")}</div></details>`:""}
+    ${st.done.length?`<details><summary class="small muted">끝낸 할 일 ${st.done.length}개 보기</summary><div class="small" style="line-height:1.8;margin-top:6px">${st.done.slice(0,40).map(x=>"✓ "+esc(x.title)).join("<br>")}</div></details>`:""}
+    <form class="stack" id="revForm" style="gap:8px">
+      ${REV_Q[revType].map(([f,l])=>`<label class="field"><span class="label">${l}</span><textarea data-rf="${f}" rows="${revType==="H"?4:3}">${esc(cur[f]||"")}</textarea></label>`).join("")}
+      <div class="row" style="justify-content:space-between"><span class="small muted">${cur.at?`저장: ${bkFmt(cur.at)}`:""}</span><button class="primary">저장</button></div>
+    </form>
+  </section>
+  ${past.length?`<section class="panel stack" style="gap:2px"><h3>지난 복기</h3>${past.map(([k,v])=>{const key=k.slice(2);const first=REV_Q[revType].map(([f])=>v[f]).find(Boolean)||"";return `<button class="lrow" data-act="revGo" data-k="${key}" style="width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:8px 0"><span style="flex:1;min-width:0"><b>${revLabel(revType,key)}</b><div class="small muted" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(first)}</div></span></button>`;}).join("")}</section>`:""}`;
+}
+function bindReview(){const f=document.getElementById("revForm");if(!f)return;
+  f.onsubmit=e=>{e.preventDefault();const v={at:Date.now()};f.querySelectorAll("[data-rf]").forEach(t=>{v[t.dataset.rf]=t.value.trim();});
+    S.reviews=S.reviews||{};const k=revType+":"+revKey;
+    if(revType==="H"&&v.notdo){const add=v.notdo.split("\n").map(x=>x.trim()).filter(Boolean);const prevAdd=((S.reviews[k]||{}).notdo||"").split("\n").map(x=>x.trim()).filter(Boolean);
+      S.notdo=[...new Set([...(S.notdo||[]),...add.filter(x=>!prevAdd.includes(x))])];}
+    S.reviews[k]=v;save();render();toast(revType==="H"&&v.notdo?"저장했어요. 하지 않을 일에도 더했어요":"복기를 저장했어요");};}
 
 /* ---------- render ---------- */
 const ICONS={
@@ -1543,6 +1674,7 @@ function render(){
   if(tab==="stock"&&!workOK)tab="today";
   app.innerHTML=({today:vToday,tasks:vTasks,log:vLog,cal:vCal,stock:vStockWrap})[tab]();
   if(tab==="stock"&&stockSub==="fib") updateFib();
+  if(tab==="log"&&logSub==="rev") bindReview();
 }
 
 function head(title,sub,extra){
@@ -1566,7 +1698,10 @@ function vToday(){
       <div class="row" style="justify-content:space-between"><h2>오늘 챙길 일</h2><button class="small" data-act="newTask" data-d="${t}" data-q="1">+ 할 일</button></div>
       ${urgent.length?urgent.map(taskRow).join(""):`<div class="empty">+ 할 일을 누르면 오늘 할 일로 바로 들어가요. 지금 하기 칸이나 내일까지 마감인 일도 여기 떠요.</div>`}
     </section>
+    ${bkBanner()}
     ${routineBlock()}
+    ${notdoBlock(true)}
+    ${revBlock()}
     ${bookBlock()}
     ${(()=>{const nw=newShared();return nw.length?`<section class="panel stack newbox" style="gap:2px">
       <div class="row" style="justify-content:space-between"><h2>새로 들어온 일정 <span class="nbadge">${nw.length}</span></h2><button class="small primary" data-act="seenShared">확인</button></div>
@@ -1602,6 +1737,7 @@ function vTasks(){
   const doneN=S.tasks.filter(x=>x.done).length;
   return head("할 일","아이젠하워 매트릭스",`<div class="row"><button class="small" data-act="openRecur">반복</button><button class="primary" data-act="newTask">+ 추가</button></div>`)+
   `<div class="stack">
+    ${notdoBlock(false)}
     <div class="row" style="justify-content:space-between">
       <div class="toggle" style="width:auto"><button data-act="filter" data-v="open" aria-pressed="${taskFilter==="open"}">진행 중</button><button data-act="filter" data-v="all" aria-pressed="${taskFilter==="all"}">완료 포함</button></div>
       ${doneN?`<button class="ghost small" data-act="clearDone">완료 ${doneN}개 정리</button>`:""}
@@ -2029,6 +2165,7 @@ function settingsSheet(){
     <div class="strip" id="sPrev"></div>
     ${window.claude?"":`<label class="row" style="gap:8px"><input type="checkbox" id="sStock" ${S.stockOn?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">주식 기능 쓰기 <span class="note">(주식 탭, 주식 일정, 매매 글귀, 근무 자동 기록)</span></label>`}
     ${groupBlock()}
+    ${IS_APP&&FB_CONFIG?`<button type="button" class="small" data-act="bkOpen" style="align-self:flex-start">자동 백업 ${bkCode()?"· 켜짐 ("+bkFmt(bkAt())+")":"켜기"}</button>`:""}
     <div class="row" style="gap:6px"><button type="button" class="small ghost" data-act="exportData">백업 복사</button><button type="button" class="small ghost" data-act="importOpen">백업 붙여넣기</button></div>
     <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="sCancel">취소</button><button class="primary">저장</button></div>
   </form>`);
@@ -2182,6 +2319,7 @@ document.addEventListener("click",e=>{
   if(tb){tab=tb.dataset.tab;calOpen=false;render();window.scrollTo(0,0);return;}
   const el=e.target.closest("[data-act]"); if(!el) return;
   const a=el.dataset.act, id=el.dataset.id;
+  if(a==="nchk"){const t=todayStr();const v=el.dataset.v;S.nchk=S.nchk||{};const arr=S.nchk[t]||[];S.nchk[t]=el.checked?[...new Set([...arr,v])]:arr.filter(x=>x!==v);save();setTimeout(render,120);return;}
   if(a==="rchk"){const t=todayStr();const v=el.dataset.v;const arr=S.rchk[t]||[];S.rchk[t]=el.checked?[...new Set([...arr,v])]:arr.filter(x=>x!==v);save();setTimeout(render,120);return;}
   if(a==="pstep"){const p=(S.projects||[]).find(x=>x.id===el.dataset.id);if(p){p.steps[Number(el.dataset.i)].d=el.checked;p.done=p.steps.every(x=>x.d);save();setTimeout(render,120);}return;}
   if(a==="evchk"){e.stopPropagation();S.evChk=S.evChk||{};if(el.checked)S.evChk[id]=1;else delete S.evChk[id];save();setTimeout(render,120);return;}
@@ -2202,6 +2340,12 @@ document.addEventListener("click",e=>{
   else if(a==="logCat"){logSheet(el.dataset.c);}
   else if(a==="editLog"){logEditSheet(id);}
   else if(a==="newBook"){bookSheet(null);}
+  else if(a==="editNotdo"){notdoSheet();}
+  else if(a==="bkOpen"){bkSheet(false);}
+  else if(a==="revType"){revType=el.dataset.v;revKey=null;render();}
+  else if(a==="revNav"){revKey=revShift(revType,revKey,Number(el.dataset.v));render();}
+  else if(a==="revGo"){revKey=el.dataset.k;render();window.scrollTo(0,0);}
+  else if(a==="openReview"){revType=el.dataset.ty;revKey=el.dataset.k;logSub="rev";tab="log";render();window.scrollTo(0,0);}
   else if(a==="editBook"){bookSheet((S.books||[]).find(x=>x.id===id));}
   else if(a==="reviewBook"){reviewSheet((S.books||[]).find(x=>x.id===id));}
   else if(a==="logNav"){const v=Number(el.dataset.v);logDate=v===0?todayStr():addDays(logDate,v);if(logDate>todayStr())logDate=todayStr();render();}
