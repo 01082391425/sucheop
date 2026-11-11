@@ -1846,7 +1846,7 @@ function head(title,sub,extra){
 
 function vStockWrap(){return `<div class="toggle" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">일정</button><button data-act="stockSub" data-v="trade" aria-pressed="${stockSub==="trade"}">매매 노트</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치</button></div>`+(stockSub==="fib"?vFib():stockSub==="trade"?vTrade():vStock());}
 let trDate=todayStr(), trMode=null, trT=null;
-const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["pick","오늘 볼 종목","종목 · 재료 · 거차재시 유실기 점수"],["plan","매수·손절 계획","1차/2차 진입가 · 손절 · 익절"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
+const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["pick","오늘 볼 종목","종목 · 재료 · 거차재시 유실기 점수"],["plan","매수·손절 계획","1차/2차 진입가 · 손절 · 익절"],["unc","불확실성","오늘 모르는 것 · 틀릴 수 있는 가정 · 변수(FOMC, 실적, 지표) · 그때 어떻게 할지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
 const TR_RV=[["did","오늘 한 매매","종목 · 매수/매도가 · 손익"],["why","시나리오와 달랐던 점","계획에 없던 매매, 놓친 자리"],["good","잘한 점",""],["bad","아쉬운 점",""],["next","다음에 바꿀 것",""]];
 function trRec(ds){S.trade=S.trade||{};const o=S.trade[ds]||{};o.sc=o.sc||{};o.rv=o.rv||{};return o;}
 function trHas(o){return o&&Object.values(o).some(v=>String(v||"").trim());}
