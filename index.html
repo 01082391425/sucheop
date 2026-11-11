@@ -1376,7 +1376,7 @@ function stackBar(mins){const tot=sumM(mins);if(!tot)return `<div class="sbar em
 function vLog(){
   const T={day:["하루 기록","시간 · 일기"],week:["주간 돌아보기","이번 주에 뭘 얼마나 했는지"],book:["독후감","3일 · 7일 · 한 달 뒤에 다시 읽어요"],rev:["복기","주간 · 월간 · 반년 인생 돌아보기"]}[logSub]||["하루 기록",""];
   return head(T[0],T[1])+
-  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간 돌아보기</button><button data-act="logSub" data-v="rev" aria-pressed="${logSub==="rev"}">복기</button></div>
+  `<div class="stack"><div class="toggle"><button data-act="logSub" data-v="day" aria-pressed="${logSub==="day"}">하루 기록</button><button data-act="logSub" data-v="week" aria-pressed="${logSub==="week"}">주간</button><button data-act="logSub" data-v="rev" aria-pressed="${logSub==="rev"}">복기</button></div>
   ${logSub==="day"?vDay():logSub==="book"?vBooks():logSub==="rev"?vReview():vWeek()}</div>`;
 }
 /* 근무 시간 기본 기록: 주간 06:00–19:30, 야간 18:00–다음날 07:30 */
@@ -1410,7 +1410,7 @@ function vDay(){
     ${stackBar(mins)}
     <div class="legend">${cats().map(([c,col])=>`<button class="lg lgbtn" data-act="logCat" data-c="${esc(c)}"><span class="cdot" style="background:${col}"></span>${esc(c)} <b class="mono">${mins[c]?hm(mins[c]):"+"}</b></button>`).join("")}</div>
     <p class="note" style="margin:0">항목을 누르면 한 시간을 적을 수 있어요. 아래 기록을 누르면 고칠 수 있어요.</p>
-    <div>${entries.length?entries.map(l=>`<div class="lrow" data-act="editLog" data-id="${l.id}" style="cursor:pointer"><span class="cdot" style="background:${catColor(l.cat)}"></span><span class="mono small">${l.s<dA?'<span class="muted">전날</span> ':''}${tStr(l.s)}–${l.e?(l.e>dB?'<span class="muted">다음날</span> ':'')+tStr(l.e):"진행 중"}</span><span style="flex:1">${esc(l.cat)}${l.note?` <span class="muted small">· ${esc(l.note)}</span>`:""}${l.rt?' <span class="label">루틴</span>':""}${l.auto?' <span class="label">근무 기본값</span>':""}</span><span class="mono small muted">${(l.s<dA||(l.e||Date.now())>dB)?`이날 ${hm(clipMins(l,logDate))} / 전체 `:""}${hm(((l.e||Date.now())-l.s)/6e4)}</span>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
+    <div>${entries.length?entries.map(l=>{const cross=l.s<dA||(l.e||Date.now())>dB;return `<div class="lrow" data-act="editLog" data-id="${l.id}" style="cursor:pointer"><span class="cdot" style="background:${catColor(l.cat)}"></span><div style="flex:1;min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b>${esc(l.cat)}</b>${l.note?` <span class="muted small">${esc(l.note)}</span>`:""}</div><div class="mono small muted">${l.s<dA?"전날 ":""}${tStr(l.s)}–${l.e?(l.e>dB?"다음날 ":"")+tStr(l.e):"진행 중"} · ${hm(cross?clipMins(l,logDate):((l.e||Date.now())-l.s)/6e4)}</div></div>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`;}).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
     <div class="row" style="justify-content:flex-end"><button class="ghost small" data-act="catEdit">항목 관리</button><button class="small" data-act="addLog">+ 직접 추가</button></div>
   </section>
   <section class="panel stack" style="gap:10px">
@@ -1846,10 +1846,43 @@ function head(title,sub,extra){
 
 function vStockWrap(){return `<div class="toggle" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">일정</button><button data-act="stockSub" data-v="trade" aria-pressed="${stockSub==="trade"}">매매 노트</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치</button></div>`+(stockSub==="fib"?vFib():stockSub==="trade"?vTrade():vStock());}
 let trDate=todayStr(), trMode=null, trT=null;
-const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["pick","오늘 볼 종목","종목 · 재료 · 거차재시 유실기 점수"],["plan","매수·손절 계획","1차/2차 진입가 · 손절 · 익절"],["unc","불확실성","오늘 모르는 것 · 틀릴 수 있는 가정 · 변수(FOMC, 실적, 지표) · 그때 어떻게 할지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
+const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["pick","오늘 볼 종목","종목 · 재료 · 거차재시 유실기 점수"],["plan","매수·손절 계획","1차/2차 진입가 · 손절 · 익절"],["unc","불확실성 오늘 체크","보드에서 세기·반영이 달라진 것 · 오늘 이걸로 빠지면 살지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
 const TR_RV=[["did","오늘 한 매매","종목 · 매수/매도가 · 손익"],["why","시나리오와 달랐던 점","계획에 없던 매매, 놓친 자리"],["good","잘한 점",""],["bad","아쉬운 점",""],["next","다음에 바꿀 것",""]];
 function trRec(ds){S.trade=S.trade||{};const o=S.trade[ds]||{};o.sc=o.sc||{};o.rv=o.rv||{};return o;}
 function trHas(o){return o&&Object.values(o).some(v=>String(v||"").trim());}
+const UNC_ST=["시장 미반영","일부 반영","충분히 반영","해소"];
+function uncList(all){return (S.unc||[]).filter(u=>all||u.st!=="해소");}
+function uncDots(n){return `<span aria-label="세기 ${n}" style="letter-spacing:1px;color:var(--up)">${"●".repeat(n||0)}<span style="opacity:.25">${"●".repeat(5-(n||0))}</span></span>`;}
+function uncBoard(){const L=uncList();const gone=(S.unc||[]).length-L.length;
+  return `<section class="panel stack" style="gap:6px;border-left:4px solid var(--up)"><div class="row" style="justify-content:space-between"><h3>⚠️ 불확실성 보드</h3><button class="small ghost" data-act="uncNew">+ 추가</button></div>
+    <p class="note" style="margin:0">시장에 악재가 될 수 있는 것들. 세기와 시장 반영 정도를 보고, 이걸로 하락하면 매수 기회로 봐요.</p>
+    ${L.length?L.map(u=>{const last=(u.log||[]).slice(-1)[0];return `<button class="lrow" data-act="uncEdit" data-id="${u.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0;display:block">
+      <div class="row" style="justify-content:space-between;gap:6px"><b>${esc(u.title)}</b>${uncDots(u.str)}</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(u.st||UNC_ST[0])}</span>${u.note?`<span class="small muted">${esc(u.note.split("\n")[0]).slice(0,40)}</span>`:""}</div>
+      ${last?`<div class="small muted" style="margin-top:2px">${last.d.slice(5).replace("-","/")} · ${esc(last.t).slice(0,60)}</div>`:""}</button>`;}).join(""):`<div class="empty">아직 없어요. + 추가로 지켜볼 악재를 넣어 보세요.</div>${workOK&&!(S.unc||[]).length?`<button class="small ghost" data-act="uncSeed" style="align-self:flex-start">내가 말한 4가지로 채우기</button>`:""}`}
+    ${gone?`<button class="ghost small" data-act="uncDone" style="align-self:flex-start">해소된 것 ${gone}개 보기</button>`:""}</section>`;}
+function uncSheet(u,showDone){
+  if(showDone){const D=(S.unc||[]).filter(x=>x.st==="해소");sheet(`<div class="stack"><h2>해소된 불확실성</h2>${D.map(x=>`<button class="lrow" data-act="uncEdit" data-id="${x.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0"><b style="flex:1">${esc(x.title)}</b>${uncDots(x.str)}</button>`).join("")}<div class="row" style="justify-content:flex-end"><button class="ghost" id="ucClose">닫기</button></div></div>`);document.getElementById("ucClose").onclick=closeSheet;return;}
+  const isNew=!u;u=u||{title:"",note:"",str:3,st:UNC_ST[0],plan:"",log:[]};let str=u.str||3,st=u.st||UNC_ST[0];
+  const logs=(u.log||[]).slice().reverse().map(l=>`<div class="bnote"><span class="label">${l.d.slice(5).replace("-","/")} · 세기 ${l.str} · ${esc(l.st)}</span><div>${esc(l.t)}</div></div>`).join("");
+  sheet(`<form class="stack" id="ucForm"><h2>${isNew?"불확실성 추가":"불확실성"}</h2>
+    <label class="field"><span class="label">무엇인가요</span><input id="ucTitle" required value="${esc(u.title)}" placeholder="예: 미국 10년물 국채금리 5%"></label>
+    <label class="field"><span class="label">세부 · 지켜볼 것</span><textarea id="ucNote" rows="3" placeholder="예: 방향성 · 연준 발언 · 입찰 결과">${esc(u.note||"")}</textarea></label>
+    <div class="field"><span class="label">세기 (시장에 줄 충격)</span><div class="row" style="gap:6px" id="ucStr">${[1,2,3,4,5].map(n=>`<button type="button" class="small ${n===str?"primary":"ghost"}" data-n="${n}">${n}</button>`).join("")}</div></div>
+    <div class="field"><span class="label">시장이 반영했나</span><div class="row" style="gap:6px;flex-wrap:wrap" id="ucSt">${UNC_ST.map(v=>`<button type="button" class="small ${v===st?"primary":"ghost"}" data-v="${v}">${v}</button>`).join("")}</div></div>
+    <label class="field"><span class="label">이걸로 하락하면</span><textarea id="ucPlan" rows="2" placeholder="예: 지수 -3% 이상이면 반도체 대장주 1차 매수">${esc(u.plan||"")}</textarea></label>
+    <label class="field"><span class="label">오늘 변화 <span class="note">(적으면 날짜와 함께 기록에 쌓여요)</span></span><textarea id="ucLog" rows="2" placeholder="예: 이스라엘 휴전 동의, 유가 -4%"></textarea></label>
+    ${logs?`<div class="stack" style="gap:6px"><span class="label">지난 기록</span>${logs}</div>`:""}
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="ucDel">삭제</button>`}<div class="row"><button type="button" class="ghost" id="ucCancel">닫기</button><button class="primary">저장</button></div></div></form>`);
+  document.querySelectorAll("#ucStr button").forEach(b=>b.onclick=()=>{str=Number(b.dataset.n);document.querySelectorAll("#ucStr button").forEach(x=>x.className="small "+(Number(x.dataset.n)===str?"primary":"ghost"));});
+  document.querySelectorAll("#ucSt button").forEach(b=>b.onclick=()=>{st=b.dataset.v;document.querySelectorAll("#ucSt button").forEach(x=>x.className="small "+(x.dataset.v===st?"primary":"ghost"));});
+  document.getElementById("ucCancel").onclick=closeSheet;
+  const del=document.getElementById("ucDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.unc=(S.unc||[]).filter(x=>x.id!==u.id);save();closeSheet();render();};
+  document.getElementById("ucForm").onsubmit=ev=>{ev.preventDefault();const title=document.getElementById("ucTitle").value.trim();if(!title)return;
+    const t=document.getElementById("ucLog").value.trim();const changed=!isNew&&(str!==u.str||st!==u.st);
+    Object.assign(u,{title,note:document.getElementById("ucNote").value.trim(),plan:document.getElementById("ucPlan").value.trim(),str,st});
+    u.log=u.log||[];if(t||changed||isNew)u.log.push({d:todayStr(),t:t||(isNew?"추가":"세기·반영 변경"),str,st});
+    S.unc=S.unc||[];if(isNew){u.id=uidGen();S.unc.push(u);}save();closeSheet();render();toast("저장했어요");};}
 function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate);const r=trRec(trDate);
   const mode=trMode||(isT&&new Date().getHours()*60+new Date().getMinutes()<15*60+30&&!trHas(r.rv)?"sc":"rv");
   const fld=(sec,[k,lab,ph])=>`<label class="field"><span class="label">${lab}</span><textarea data-tr="${sec}.${k}" rows="3" placeholder="${esc(ph)}">${esc((r[sec]||{})[k]||"")}</textarea></label>`;
@@ -1861,8 +1894,8 @@ function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate)
     <div style="text-align:center"><h2>${d.getMonth()+1}/${d.getDate()} ${WD[d.getDay()]}</h2>${isT?"":`<button class="ghost small" data-act="trNav" data-v="0">오늘로</button>`}</div>
     <button aria-label="다음날" data-act="trNav" data-v="1">›</button></div>
   <div class="toggle" style="margin-bottom:12px"><button data-act="trMode" data-v="sc" aria-pressed="${mode==="sc"}">아침 시나리오 ${trHas(r.sc)?"✓":""}</button><button data-act="trMode" data-v="rv" aria-pressed="${mode==="rv"}">장 마감 복기 ${trHas(r.rv)?"✓":""}</button></div>
-  ${mode==="sc"?`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${TR_SC.map(f=>fld("sc",f)).join("")}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
-  :`${scView}<section class="panel stack" style="gap:10px"><h3>장 마감 복기</h3>
+  ${mode==="sc"?uncBoard()+`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${TR_SC.map(f=>fld("sc",f)).join("")}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
+  :`${scView}${uncBoard()}<section class="panel stack" style="gap:10px"><h3>장 마감 복기</h3>
     <div class="field"><span class="label">시나리오대로 했나요?</span><div class="row" style="gap:6px;flex-wrap:wrap">${["그대로 했어요","일부만","지키지 못했어요","매매 안 함"].map(v=>`<button class="small ${fol===v?"primary":"ghost"}" data-act="trFollow" data-v="${v}">${v}</button>`).join("")}</div></div>
     ${TR_RV.map(f=>fld("rv",f)).join("")}<div class="row" style="justify-content:space-between"><span class="note" id="trState">쓰는 대로 저장돼요</span><span class="row" style="gap:4px"><button class="ghost small" data-act="trCopy">옵시디언용 복사</button><button class="ghost small" data-act="trCsv">엑셀로 내보내기</button></span></div></section>`}`;}
 async function trExport(){const T=S.trade||{};const days=Object.keys(T).filter(d=>trHas(T[d].sc)||trHas(T[d].rv)).sort();
@@ -2529,6 +2562,10 @@ document.addEventListener("click",e=>{
   else if(a==="trMode"){trMode=el.dataset.v;render();}
   else if(a==="trFollow"){S.trade=S.trade||{};const r=trRec(trDate);r.rv=Object.assign({},r.rv,{follow:r.rv.follow===el.dataset.v?"":el.dataset.v});S.trade[trDate]=r;save();render();}
   else if(a==="trCsv"){trExport();}
+  else if(a==="uncNew"){uncSheet(null);}
+  else if(a==="uncSeed"){if((S.unc||[]).length)return;const d=todayStr();S.unc=[["미-이란 전쟁 종식 과정","이스라엘, 중국, 러시아 제스처"],["러-우크라이나 전쟁 종식 과정","미국의 제스처"],["미국 10년물 국채금리 5%","방향성"],["젠슨 황 불륜 결과","상·하원의 발언"]].map(([title,note])=>({id:uidGen(),title,note,str:3,st:"시장 미반영",plan:"",log:[{d,t:"추가",str:3,st:"시장 미반영"}]}));save();render();toast("4가지를 넣었어요 · 눌러서 세기와 반영 정도를 맞춰 주세요");}
+  else if(a==="uncEdit"){uncSheet((S.unc||[]).find(x=>x.id===el.dataset.id));}
+  else if(a==="uncDone"){uncSheet(null,true);}
   else if(a==="trCopy"){const r=trRec(trDate);const L=[`# ${trDate} 매매`,"## 시나리오",...TR_SC.map(([k,lab])=>`- **${lab}**: ${String(r.sc[k]||"").trim()}`),"## 복기",`- **시나리오대로**: ${r.rv.follow||""}`,...TR_RV.map(([k,lab])=>`- **${lab}**: ${String(r.rv[k]||"").trim()}`)].join("\n");
     (navigator.clipboard?navigator.clipboard.writeText(L):Promise.reject()).then(()=>toast("복사했어요 · 옵시디언에 붙여넣으세요")).catch(()=>toast("복사가 안 됐어요"));}
   else if(a==="startCat"){startCat(el.dataset.c);}
