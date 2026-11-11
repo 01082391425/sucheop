@@ -1589,7 +1589,10 @@ const PUSH_SPKI="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA03dSG7vbwkGQ6wMIIMY
 const PUSH_SUB="sucheop-pushsub",PUSH_ID="sucheop-pushid",PUSH_AT="sucheop-pushat";
 function pushSubJSON(){try{return localStorage.getItem(PUSH_SUB)||"";}catch(e){return "";}}
 function pushId(){try{let i=localStorage.getItem(PUSH_ID);if(!i){i="p"+newGroupCode().replace(/-/g,"")+Date.now().toString(36);localStorage.setItem(PUSH_ID,i);}return i;}catch(e){return "";}}
-function pushOpt(){return Object.assign({ev:60,evDay:true,task:true,routine:true,shift:true,book:true,grat:true,rev:true,shared:true,newShared:true},S.pushOpt||{});}
+function pushOpt(){const o=Object.assign({ev:[60,1440],evDay:true,task:true,routine:true,shift:true,book:true,grat:true,rev:true,shared:true,newShared:true},S.pushOpt||{});
+  if(!Array.isArray(o.ev))o.ev=[Number(o.ev)||60,1440];return o;}
+const EV_OPTS=[[10,"10분 전"],[30,"30분 전"],[60,"1시간 전"],[120,"2시간 전"],[1440,"하루 전"]];
+const evLbl=m=>m>=1440?"내일":m>=60?(m/60)+"시간 뒤":m+"분 뒤";
 function b64(buf){let s="";new Uint8Array(buf).forEach(x=>s+=String.fromCharCode(x));return btoa(s);}
 function unb64(s){const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
 function urlB64(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return unb64(s);}
@@ -1602,17 +1605,17 @@ function pushItems(){const o=pushOpt();const now=Date.now();const t0=todayStr();
   for(let i=0;i<=14;i++){const ds=addDays(t0,i);
     if(o.routine)routineFor(ds).items.forEach(it=>{const m=it.match(/^(\d{1,2}):(\d{2})/);if(m)add("rt-"+ds+"-"+m[1]+m[2]+"-"+it.length,at(ds,+m[1],+m[2]),it,"오늘 루틴");});
     if(o.shift){const k=dayKind(addDays(ds,1));const nx=addDays(ds,1);const sh=shiftOf(nx);if(sh==="주"||sh==="야")add("sh-"+nx+"-"+sh,at(ds,21,0),`내일 ${sh==="주"?"주간 근무 06:00":"야간 근무 18:00"}${isOv(nx)?" (대근)":""}`,k==="야간 첫날"?"오후에 낮잠 자 두기":"일찍 자기");}
-    if(o.grat&&!(i===0&&gratN(ds)>=5))add("gr-"+ds,at(ds,21,30),"감사일기 쓸 시간","오늘 감사한 일 5가지");
+    if(o.grat&&!(i===0&&gratN(ds)>=5))add("gr-"+ds,at(ds,21,0),"감사일기 쓸 시간","오늘 감사한 일 5가지를 적어 봐요");
   }
   if(workOK)(S.events||[]).forEach(e=>{if(!e.date)return;
-    if(e.time&&evEnd(e)===e.date){const [h,m]=e.time.split(":").map(Number);const t=at(e.date,h,m);add("ev-"+e.id+"-"+t,t-o.ev*6e4,`📈 ${e.title}`,`${e.time} · ${o.ev>=1440?"내일":o.ev+"분 뒤"}`);}
-    else if(o.evDay)add("evd-"+e.id+"-"+e.date,at(addDays(e.date,-1),21,0),`📈 내일: ${e.title}`,e.stocks||"");});
+    if(e.time&&evEnd(e)===e.date){const [h,m]=e.time.split(":").map(Number);const t=at(e.date,h,m);o.ev.forEach(b=>add("ev-"+e.id+"-"+t+"-"+b,t-b*6e4,`📈 ${e.title}`,`${b>=1440?"내일 "+e.time:e.time+" · "+evLbl(b)}`));}
+    else if(o.evDay)add("evd-"+e.id+"-"+e.date,at(addDays(e.date,-1),20,0),`📈 내일: ${e.title}`,e.stocks||"");});
   if(o.task)S.tasks.filter(x=>!x.done&&x.due).forEach(x=>add("tk-"+x.id+"-"+x.due,at(x.due,8,0),`할 일 마감: ${x.title}`,"오늘까지예요"));
   if(o.book)(S.books||[]).forEach(b=>REV.forEach(([n,l])=>{if((b.rev||{})[n])return;add("bk-"+b.id+"-"+n,at(addDays(b.date,n),9,0),`독후감 다시 보기: ${b.title}`,`${l} 전에 쓴 글`);}));
-  if(o.rev){const R=S.reviews||{};for(let i=0;i<=14;i++){const ds=addDays(t0,i);const d=parseD(ds);
-    if(d.getDay()===0&&!R["W:"+wStart(ds)])add("rvw-"+ds,at(ds,20,0),"주간 복기할 시간","이번 주 일정·독후감·일기를 돌아봐요");
-    const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();if(d.getDate()===last&&!R["M:"+ds.slice(0,7)])add("rvm-"+ds,at(ds,20,30),"월간 복기할 시간","이번 달을 돌아봐요");
-    if((ds.slice(5)==="06-30"||ds.slice(5)==="12-31")&&!R["H:"+revKeyOf("H",ds)])add("rvh-"+ds,at(ds,20,0),"반년 인생 복기","지난 6개월을 돌아봐요");}}
+  if(o.rev){const R=S.reviews||{};for(let i=0;i<=14;i++){const ds=addDays(t0,i);const d=parseD(ds);const dw=d.getDay();if(dw<1||dw>5)continue;
+    const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();const extra=[];
+    if(dw>=1&&dw<=3&&!R["W:"+wStart(addDays(ds,-7))])extra.push("지난주");if(d.getDate()>=last-1&&!R["M:"+ds.slice(0,7)])extra.push("이번 달");
+    add("rv-"+ds,at(ds,20,0),"복기할 시간",extra.length?`${extra.join("·")} 복기가 남아 있어요`:"오늘 일정·독후감·일기를 돌아봐요");}}
   try{JSON.parse(localStorage.getItem("sucheop-pushtest")||"[]").forEach(x=>add(x.k,x.t,x.title,x.body));}catch(e){}
   return out.sort((a,b)=>a.t-b.t).slice(0,400);}
 let pushT=null,pushErr="";
@@ -1645,20 +1648,21 @@ function pushSheet(){const on=!!pushSubJSON();const o=pushOpt();let pat=0;try{pa
       <span class="label">무엇을 알려 줄까요</span>
       ${ck("puShared",o.shared,"함께 보는 일정")}${ck("puNew",o.newShared,"같이 쓰는 사람이 새 일정을 넣으면 바로")}
       ${workOK?ck("puStock",true,"주식 일정"):""}
-      <label class="field"><span class="label">시간 있는 일정</span><select id="puEv">${[[10,"10분 전"],[30,"30분 전"],[60,"1시간 전"],[120,"2시간 전"],[1440,"하루 전"]].map(([v,t])=>`<option value="${v}" ${o.ev==v?"selected":""}>${t}</option>`).join("")}</select></label>
-      ${ck("puEvDay",o.evDay,"시간 없는 일정은 전날 밤 9시에")}
+      <div class="field"><span class="label">시간 있는 일정 (여러 개 고를 수 있어요)</span><div class="toggle" style="flex-wrap:wrap">${EV_OPTS.map(([v,t])=>`<button type="button" data-pev="${v}" aria-pressed="${o.ev.includes(v)}">${t}</button>`).join("")}</div></div>
+      ${ck("puEvDay",o.evDay,"시간 없는 일정은 전날 밤 8시에")}
       ${ck("puTask",o.task,"할 일 마감 (당일 아침 8시)")}${ck("puRt",o.routine,"오늘 루틴 (시간이 적힌 항목, 그 시간에)")}
       ${ck("puShift",o.shift,"근무 (전날 밤 9시)")}${ck("puBook",o.book,"독후감 다시 보기 (아침 9시)")}
-      ${ck("puGrat",o.grat,"감사일기 (밤 9시 30분, 다 쓴 날은 안 옴)")}${ck("puRev",o.rev,"복기 (주말·월말 저녁)")}
+      ${ck("puGrat",o.grat,"감사일기 (밤 9시, 다 쓴 날은 안 옴)")}${ck("puRev",o.rev,"복기 (월~금 저녁 8시)")}
     </div>
     <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px">${on?`<span class="row" style="gap:6px"><button type="button" class="small ghost" id="puTest">시험 알림</button><button type="button" class="small ghost danger" id="puOff">끄기</button></span>`:"<span></span>"}
       <span class="row" style="gap:6px"><button type="button" class="ghost" id="puClose">닫기</button><button class="primary">저장</button></span></div></form>`);
   const g=id=>document.getElementById(id);
+  document.querySelectorAll("[data-pev]").forEach(b=>b.onclick=()=>b.setAttribute("aria-pressed",String(b.getAttribute("aria-pressed")!=="true")));
   g("puClose").onclick=closeSheet;if(g("puOn"))g("puOn").onclick=pushOn;if(g("puOff"))g("puOff").onclick=pushOff;
   if(g("puTest"))g("puTest").onclick=async()=>{const t=Date.now()+60e3;let L=[];try{L=JSON.parse(localStorage.getItem("sucheop-pushtest")||"[]").filter(x=>x.t>Date.now()-3600e3);}catch(e){}
     L.push({k:"test-"+t,t,title:"시험 알림",body:"푸시 알림이 잘 와요"});try{localStorage.setItem("sucheop-pushtest",JSON.stringify(L));}catch(e){}
     await pushSync(false);toast("시험 알림을 예약했어요. 5~15분 안에 와요");};
-  g("puForm").onsubmit=e=>{e.preventDefault();S.pushOpt={ev:Number(g("puEv").value),evDay:g("puEvDay").checked,task:g("puTask").checked,routine:g("puRt").checked,shift:g("puShift").checked,
+  g("puForm").onsubmit=e=>{e.preventDefault();S.pushOpt={ev:[...document.querySelectorAll('[data-pev][aria-pressed="true"]')].map(b=>Number(b.dataset.pev)),evDay:g("puEvDay").checked,task:g("puTask").checked,routine:g("puRt").checked,shift:g("puShift").checked,
     book:g("puBook").checked,grat:g("puGrat").checked,rev:g("puRev").checked,shared:g("puShared").checked,newShared:g("puNew").checked};save();pushSync(false);closeSheet();toast("알림 설정을 저장했어요");};
 }
 
