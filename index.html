@@ -1405,7 +1405,7 @@ function vDay(){
     ${stackBar(mins)}
     <div class="legend">${cats().map(([c,col])=>`<button class="lg lgbtn" data-act="logCat" data-c="${esc(c)}"><span class="cdot" style="background:${col}"></span>${esc(c)} <b class="mono">${mins[c]?hm(mins[c]):"+"}</b></button>`).join("")}</div>
     <p class="note" style="margin:0">항목을 누르면 한 시간을 적을 수 있어요. 아래 기록을 누르면 고칠 수 있어요.</p>
-    <div>${entries.length?entries.map(l=>`<div class="lrow" data-act="editLog" data-id="${l.id}" style="cursor:pointer"><span class="cdot" style="background:${catColor(l.cat)}"></span><span class="mono small">${tStr(l.s)}–${l.e?tStr(l.e):"진행 중"}</span><span style="flex:1">${esc(l.cat)}${l.auto?' <span class="label">근무 기본값</span>':""}</span><span class="mono small muted">${hm(((l.e||Date.now())-l.s)/6e4)}</span>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
+    <div>${entries.length?entries.map(l=>`<div class="lrow" data-act="editLog" data-id="${l.id}" style="cursor:pointer"><span class="cdot" style="background:${catColor(l.cat)}"></span><span class="mono small">${tStr(l.s)}–${l.e?tStr(l.e):"진행 중"}</span><span style="flex:1">${esc(l.cat)}${l.note?` <span class="muted small">· ${esc(l.note)}</span>`:""}${l.rt?' <span class="label">루틴</span>':""}${l.auto?' <span class="label">근무 기본값</span>':""}</span><span class="mono small muted">${hm(((l.e||Date.now())-l.s)/6e4)}</span>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
     <div class="row" style="justify-content:flex-end"><button class="ghost small" data-act="catEdit">항목 관리</button><button class="small" data-act="addLog">+ 직접 추가</button></div>
   </section>
   <section class="panel stack" style="gap:10px">
@@ -1486,6 +1486,21 @@ function mineSheet(md){const [m,dd]=md.split("-").map(Number);const e=dly(md);co
   document.getElementById("mqForm").onsubmit=ev=>{ev.preventDefault();const v=document.getElementById("mqTxt").value.trim();S.dailyMine=S.dailyMine||{};
     if(v)S.dailyMine[md]=v;else delete S.dailyMine[md];save();closeSheet();render();toast("저장했어요");};}
 
+function rtCat(it){
+  const pick=[[/아이|애기|등원|하원|가족|아내/,"가족"],[/독서|책/,"독서"],[/러닝|런닝|달리|스트레칭|산책|운동|헬스|몸 깨우/,"운동"],[/미국|시장|주식|매매|차트/,"주식"],[/잠|수면|낮잠|휴식|회복/,"휴식"]];
+  for(const [re,c] of pick)if(re.test(it))return c;return "루틴";}
+function rtEnsureCat(c){if(cats().some(x=>x[0]===c))return;S.customCats=S.customCats||[];S.customCats.push(c);}
+function rtTimes(date){const {items}=routineFor(date);const base=parseD(date);const mk=(h,m)=>{const d=new Date(base);d.setHours(h,m,0,0);return d.getTime();};
+  const P=items.map(it=>{const m=it.match(/^(\d{1,2}):(\d{2})(?:\s*[–~-]\s*(\d{1,2}):(\d{2}))?/);const du=it.match(/(\d+)\s*분/);
+    return {it,s:m?mk(+m[1],+m[2]):null,e:m&&m[3]?mk(+m[3],+m[4]):null,du:du?+du[1]:null,sleep:/잠자리|수면|기상|자기 전/.test(it),work:/출근 전까지/.test(it)};});
+  let cur=null;const out={};
+  const now=Date.now(),isT=date===todayStr();P.forEach((x,i)=>{let s=x.s!=null?x.s:cur;if(x.s==null&&isT&&(s==null||Math.abs(now-s)>2*36e5))s=now-(x.du||10)*6e4;
+    let e=x.e;if(e==null&&s!=null){if(x.du)e=s+x.du*6e4;else if(x.sleep)e=s;else if(x.work&&mk(6,0)>s)e=mk(6,0);else{const nx=P.slice(i+1).find(y=>y.s!=null);e=nx&&nx.s>s&&nx.s-s<=3*36e5?nx.s:s+10*6e4;}}
+    out[x.it]={s,e};if(e!=null)cur=e;});
+  return out;}
+function rtLog(date,it,on){const key=date+"|"+it;S.logs=S.logs.filter(l=>l.rt!==key);if(!on)return;
+  let {s,e}=rtTimes(date)[it]||{};const now=Date.now();if(s==null){const d=(it.match(/(\d+)\s*분/)||[])[1];e=now;s=now-(d?+d:10)*6e4;}if(e==null||e<s)e=s;
+  const c=rtCat(it);rtEnsureCat(c);S.logs.push({id:uidGen(),cat:c,s,e,rt:key,note:it.replace(/^\d{1,2}:\d{2}(\s*[–~-]\s*\d{1,2}:\d{2})?\s*/,"")});}
 function routineBlock(){const t=todayStr();const {k,items}=routineFor(t);const done=(S.rchk[t]||[]);
   const n=items.filter(i=>done.includes(i)).length;
   return `<section class="panel stack" style="gap:4px">
@@ -2078,8 +2093,8 @@ function catSheet(){
 }
 function routineSheet(){
   const keys=["매일","주","휴","야간 첫날","야간 둘째 날","야간 다음 휴무",...((S.routines["야"]||[]).filter(Boolean).length?["야"]:[])];
-  const TPL={"매일":"","주":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:00 러닝 30분\n05:30 씻기\n05:40 독서 (출근 전까지)\n22:00 전 잠자리 (6~7시간 수면)",
-    "휴":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:00 러닝 30분\n05:30 씻기\n05:40–06:40 독서\n06:40 미국시장 확인\n07:30–09:10 아이 등원 준비\n09:10 앱 만들기 or 독서\n22:00 전 잠자리 (6~7시간 수면)",
+  const TPL={"매일":"","주":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:00 러닝 30분\n05:30 씻기\n05:40 독서 (출근 전까지)\n21:30 아이 책 읽어주기 2권 (30분)\n22:00 전 잠자리 (6~7시간 수면)",
+    "휴":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:00 러닝 30분\n05:30 씻기\n05:40–06:40 독서\n06:40 미국시장 확인\n07:30–09:10 아이 등원 준비\n09:10 앱 만들기 or 독서\n21:30 아이 책 읽어주기 2권 (30분)\n22:00 전 잠자리 (6~7시간 수면)",
     "야간 첫날":"04:30 기상\n명상 10분\n스트레칭 10분 (몸 깨우기)\n05:30 씻기\n05:40–06:40 독서\n06:40 미국시장 확인\n07:30–09:10 아이 등원 준비\n오후 낮잠 (야간 대비)",
     "야간 둘째 날":"퇴근 후 푹 자기\n오후 낮잠 (야간 대비)","야간 다음 휴무":"푹 자고 회복하기\n가벼운 산책"};
   sheet(`<form class="stack" id="rtForm"><h2>오늘 루틴</h2>
@@ -2441,7 +2456,7 @@ document.addEventListener("click",e=>{
   const el=e.target.closest("[data-act]"); if(!el) return;
   const a=el.dataset.act, id=el.dataset.id;
   if(a==="nchk"){const t=todayStr();const v=el.dataset.v;S.nchk=S.nchk||{};const arr=S.nchk[t]||[];S.nchk[t]=el.checked?[...new Set([...arr,v])]:arr.filter(x=>x!==v);save();setTimeout(render,120);return;}
-  if(a==="rchk"){const t=todayStr();const v=el.dataset.v;const arr=S.rchk[t]||[];S.rchk[t]=el.checked?[...new Set([...arr,v])]:arr.filter(x=>x!==v);save();setTimeout(render,120);return;}
+  if(a==="rchk"){const t=todayStr();const v=el.dataset.v;const arr=S.rchk[t]||[];S.rchk[t]=el.checked?[...new Set([...arr,v])]:arr.filter(x=>x!==v);rtLog(t,v,el.checked);save();setTimeout(render,120);if(el.checked)toast("하루 기록에 넣었어요");return;}
   if(a==="pstep"){const p=(S.projects||[]).find(x=>x.id===el.dataset.id);if(p){p.steps[Number(el.dataset.i)].d=el.checked;p.done=p.steps.every(x=>x.d);save();setTimeout(render,120);}return;}
   if(a==="evchk"){e.stopPropagation();S.evChk=S.evChk||{};if(el.checked)S.evChk[id]=1;else delete S.evChk[id];save();setTimeout(render,120);return;}
   if(a==="toggle"){const t=S.tasks.find(x=>x.id===id);if(t){t.done=el.checked;t.doneAt=el.checked?todayStr():null;save();setTimeout(render,150);}return;}
