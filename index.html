@@ -314,6 +314,7 @@ let saveT=null;
 function save(){
   try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){}
   if(typeof bkSchedule==="function")try{bkSchedule();}catch(e){}
+  if(typeof pushSchedule==="function")try{pushSchedule();}catch(e){}
   clearTimeout(saveT);
   saveT=setTimeout(pushRemote,700);
 }
@@ -329,7 +330,8 @@ function syncLabel(){return {local:"이 기기에 저장",synced:"계정에 저�
 
 (async function initRemote(){
   try{
-    if(!window.claude||!window.claude.use){setTimeout(()=>{enableWork(!!S.stockOn);initGroup();if(bkCode()&&Date.now()-bkAt()>6*3600e3)setTimeout(()=>backupNow(false),3000);},0);return;}
+    if(!window.claude||!window.claude.use){setTimeout(()=>{enableWork(!!S.stockOn);initGroup();if(bkCode()&&Date.now()-bkAt()>6*3600e3)setTimeout(()=>backupNow(false),3000);if(pushSubJSON())setTimeout(()=>pushSync(false),4000);
+      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&pushSubJSON()){let a=0;try{a=Number(localStorage.getItem(PUSH_AT))||0;}catch(e){}if(Date.now()-a>30*60e3)pushSync(false);}});},0);return;}
     const [d,u]=await Promise.all([window.claude.use("db"),window.claude.use("user")]);
     if(!d||!u){enableWork(true);return;}
     const id=await u.id(); if(!id){enableWork(true);return;}
@@ -411,6 +413,7 @@ function bkSheet(fresh){const c=bkCode();
   const ld=g("bkLoad");ld.onclick=()=>{if(!ld.dataset.sure){ld.dataset.sure=1;ld.textContent="한 번 더 누르면 불러와요";return;}bkRestore(g("bkIn").value);};
 }
 function bkBanner(){if(!IS_APP||!FB_CONFIG)return "";if(!bkCode())return `<button class="nowchip" data-act="bkOpen" style="border-color:var(--q1)"><span class="cdot" style="background:var(--q1)"></span>자동 백업이 꺼져 있어요 <b style="margin-left:auto">켜기 ›</b></button>`;
+  if(typeof pushSubJSON==="function"&&!pushSubJSON()&&"PushManager" in window)return `<button class="nowchip" data-act="pushOpen"><span class="cdot"></span>푸시 알림을 켜면 일정 알람이 와요 <b style="margin-left:auto">켜기 ›</b></button>`;
   return "";}
 async function initGroup(){
   const gp=S.grp||{};if(!gp.code||!FB_CONFIG)return;
@@ -1579,6 +1582,86 @@ function reviewSheet(b){
 
 
 
+
+/* ---------- 푸시 알림 (홈 화면 앱 · GitHub Actions가 5분마다 보냄) ---------- */
+const VAPID_PUB="BIazd7mtH4-sOTFcPrv4X3YX3-oLT1DhOwR41dhIDB3Zc1desFFdQjnOkDR951-sx1JU0dRs2WsAzDjo-koUbYs";
+const PUSH_SPKI="MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA03dSG7vbwkGQ6wMIIMY+yGqbTYPQJ7rWyTrrUsbK+gtLx4aejJ2crtAFW3hNnWg1r8xWj/kP6mJpEVjk99q3EaCOS4Jc19Os+XwCg5pxpTSxztdKx8rtNsGvEogOpZLQ9aAUdeKZzr54j/cK5RUJpyY88jUk65e1mhD7VuIzQBwwJ7Jc4He9rFskvTcVKHqhl79xPqMAOiqy9ukAVkccpW+jjGzhhDD5jNcX21EEYvqOj3AKoiJ2CeAHfbwtaB58V0vMnhbWu5kW90pUcP+8qDkMwzGKA9x78rxGzCPDQO1TKGDd+n9D0m1adV36cin27me8rMBg+z/4GbwS8wINfwIDAQAB";
+const PUSH_SUB="sucheop-pushsub",PUSH_ID="sucheop-pushid",PUSH_AT="sucheop-pushat";
+function pushSubJSON(){try{return localStorage.getItem(PUSH_SUB)||"";}catch(e){return "";}}
+function pushId(){try{let i=localStorage.getItem(PUSH_ID);if(!i){i="p"+newGroupCode().replace(/-/g,"")+Date.now().toString(36);localStorage.setItem(PUSH_ID,i);}return i;}catch(e){return "";}}
+function pushOpt(){return Object.assign({ev:60,evDay:true,task:true,routine:true,shift:true,book:true,grat:true,rev:true,shared:true,newShared:true},S.pushOpt||{});}
+function b64(buf){let s="";new Uint8Array(buf).forEach(x=>s+=String.fromCharCode(x));return btoa(s);}
+function unb64(s){const b=atob(s);const u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
+function urlB64(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="=";return unb64(s);}
+async function pushEnc(obj){const pub=await crypto.subtle.importKey("spki",unb64(PUSH_SPKI),{name:"RSA-OAEP",hash:"SHA-256"},false,["encrypt"]);
+  const aes=await crypto.subtle.generateKey({name:"AES-GCM",length:256},true,["encrypt"]);const raw=await crypto.subtle.exportKey("raw",aes);
+  const iv=crypto.getRandomValues(new Uint8Array(12));const d=await crypto.subtle.encrypt({name:"AES-GCM",iv},aes,new TextEncoder().encode(JSON.stringify(obj)));
+  const k=await crypto.subtle.encrypt({name:"RSA-OAEP"},pub,raw);return JSON.stringify({k:b64(k),iv:b64(iv),d:b64(d)});}
+function pushItems(){const o=pushOpt();const now=Date.now();const t0=todayStr();const out=[];const add=(k,t,title,body)=>{if(t>now-60e3&&t<now+15*864e5)out.push({k,t,title,body:body||""});};
+  const at=(ds,h,m)=>atT(ds,h,m).getTime();
+  for(let i=0;i<=14;i++){const ds=addDays(t0,i);
+    if(o.routine)routineFor(ds).items.forEach(it=>{const m=it.match(/^(\d{1,2}):(\d{2})/);if(m)add("rt-"+ds+"-"+m[1]+m[2]+"-"+it.length,at(ds,+m[1],+m[2]),it,"오늘 루틴");});
+    if(o.shift){const k=dayKind(addDays(ds,1));const nx=addDays(ds,1);const sh=shiftOf(nx);if(sh==="주"||sh==="야")add("sh-"+nx+"-"+sh,at(ds,21,0),`내일 ${sh==="주"?"주간 근무 06:00":"야간 근무 18:00"}${isOv(nx)?" (대근)":""}`,k==="야간 첫날"?"오후에 낮잠 자 두기":"일찍 자기");}
+    if(o.grat&&!(i===0&&gratN(ds)>=5))add("gr-"+ds,at(ds,21,30),"감사일기 쓸 시간","오늘 감사한 일 5가지");
+  }
+  if(workOK)(S.events||[]).forEach(e=>{if(!e.date)return;
+    if(e.time&&evEnd(e)===e.date){const [h,m]=e.time.split(":").map(Number);const t=at(e.date,h,m);add("ev-"+e.id+"-"+t,t-o.ev*6e4,`📈 ${e.title}`,`${e.time} · ${o.ev>=1440?"내일":o.ev+"분 뒤"}`);}
+    else if(o.evDay)add("evd-"+e.id+"-"+e.date,at(addDays(e.date,-1),21,0),`📈 내일: ${e.title}`,e.stocks||"");});
+  if(o.task)S.tasks.filter(x=>!x.done&&x.due).forEach(x=>add("tk-"+x.id+"-"+x.due,at(x.due,8,0),`할 일 마감: ${x.title}`,"오늘까지예요"));
+  if(o.book)(S.books||[]).forEach(b=>REV.forEach(([n,l])=>{if((b.rev||{})[n])return;add("bk-"+b.id+"-"+n,at(addDays(b.date,n),9,0),`독후감 다시 보기: ${b.title}`,`${l} 전에 쓴 글`);}));
+  if(o.rev){const R=S.reviews||{};for(let i=0;i<=14;i++){const ds=addDays(t0,i);const d=parseD(ds);
+    if(d.getDay()===0&&!R["W:"+wStart(ds)])add("rvw-"+ds,at(ds,20,0),"주간 복기할 시간","이번 주 일정·독후감·일기를 돌아봐요");
+    const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();if(d.getDate()===last&&!R["M:"+ds.slice(0,7)])add("rvm-"+ds,at(ds,20,30),"월간 복기할 시간","이번 달을 돌아봐요");
+    if((ds.slice(5)==="06-30"||ds.slice(5)==="12-31")&&!R["H:"+revKeyOf("H",ds)])add("rvh-"+ds,at(ds,20,0),"반년 인생 복기","지난 6개월을 돌아봐요");}}
+  try{JSON.parse(localStorage.getItem("sucheop-pushtest")||"[]").forEach(x=>add(x.k,x.t,x.title,x.body));}catch(e){}
+  return out.sort((a,b)=>a.t-b.t).slice(0,400);}
+let pushT=null,pushErr="";
+function pushSchedule(){if(!IS_APP||!pushSubJSON()||!FB_CONFIG)return;clearTimeout(pushT);pushT=setTimeout(()=>pushSync(false),15000);}
+async function pushSync(loud){const sj=pushSubJSON();if(!sj)return false;
+  try{const o=pushOpt();const g=S.grp&&S.grp.code?{code:S.grp.code,uid:appUid(),ev:o.ev,evDay:o.evDay,shared:o.shared,newShared:o.newShared}:null;
+    const p=await pushEnc({v:1,sub:JSON.parse(sj),items:pushItems(),grp:g});const fs=await fbFS();
+    await fs.collection("push").doc(pushId()).set({p,at:Date.now()},{merge:true});try{localStorage.setItem(PUSH_AT,String(Date.now()));}catch(e){}pushErr="";if(loud)toast("알림 예약을 맞췄어요");return true;}
+  catch(e){pushErr="인터넷에 연결되면 알림 예약이 맞춰져요";if(loud)toast(pushErr);return false;}}
+function isStandalone(){return (window.matchMedia&&matchMedia("(display-mode: standalone)").matches)||navigator.standalone===true;}
+async function pushOn(){
+  if(!("serviceWorker" in navigator)||!("PushManager" in window)||!("Notification" in window)){toast(/iPhone|iPad/.test(navigator.userAgent)&&!isStandalone()?"홈 화면에 추가한 수첩 아이콘으로 열어야 알림을 켤 수 있어요":"이 브라우저는 푸시 알림을 지원하지 않아요");return;}
+  const perm=await Notification.requestPermission();if(perm!=="granted"){toast("알림이 허용되지 않았어요. 설정 → 알림에서 허용해 주세요");return;}
+  try{const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(VAPID_PUB)});
+    localStorage.setItem(PUSH_SUB,JSON.stringify(sub));pushId();await pushSync(false);
+    reg.showNotification("근무 수첩",{body:"푸시 알림이 켜졌어요",icon:"icon-192.png",tag:"hello"});render();pushSheet();}
+  catch(e){toast("알림을 켜지 못했어요: "+(e&&e.message||""));}}
+async function pushOff(){try{const reg=await navigator.serviceWorker.ready;const sub=await reg.pushManager.getSubscription();if(sub)await sub.unsubscribe();}catch(e){}
+  try{const fs=await fbFS();await fs.collection("push").doc(pushId()).delete();}catch(e){}
+  try{localStorage.removeItem(PUSH_SUB);}catch(e){}render();pushSheet();toast("푸시 알림을 껐어요");}
+function pushSheet(){const on=!!pushSubJSON();const o=pushOpt();let pat=0;try{pat=Number(localStorage.getItem(PUSH_AT))||0;}catch(e){}
+  const ck=(id,v,txt)=>`<label class="row" style="gap:8px"><input type="checkbox" id="${id}" ${v?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">${txt}</label>`;
+  const n=on?pushItems().filter(x=>x.t>Date.now()&&x.t<Date.now()+864e5).length:0;
+  sheet(`<form class="stack" id="puForm"><h2>푸시 알림</h2>
+    <p class="note">앱을 열지 않아도 정해진 시간에 휴대폰 알림이 와요. 알림 서버가 5분마다 확인해서 보내서 <b>몇 분 늦게</b> 올 수 있어요. 함께 쓰는 사람이 새 일정을 넣으면 그것도 알려 줘요.</p>
+    ${on?`<div class="note" style="color:var(--accent)">켜져 있어요 · 앞으로 24시간 알림 ${n}개 · 예약 맞춘 시각 ${bkFmt(pat)}${pushErr?" · "+esc(pushErr):""}</div>`:`<button type="button" class="primary" id="puOn">푸시 알림 켜기</button>
+    ${/iPhone|iPad/.test(navigator.userAgent)&&!isStandalone()?`<p class="note" style="color:var(--q1)">아이폰은 홈 화면에 추가한 수첩 아이콘으로 열어야 켤 수 있어요.</p>`:""}`}
+    <div class="stack" style="gap:6px">
+      <span class="label">무엇을 알려 줄까요</span>
+      ${ck("puShared",o.shared,"함께 보는 일정")}${ck("puNew",o.newShared,"같이 쓰는 사람이 새 일정을 넣으면 바로")}
+      ${workOK?ck("puStock",true,"주식 일정"):""}
+      <label class="field"><span class="label">시간 있는 일정</span><select id="puEv">${[[10,"10분 전"],[30,"30분 전"],[60,"1시간 전"],[120,"2시간 전"],[1440,"하루 전"]].map(([v,t])=>`<option value="${v}" ${o.ev==v?"selected":""}>${t}</option>`).join("")}</select></label>
+      ${ck("puEvDay",o.evDay,"시간 없는 일정은 전날 밤 9시에")}
+      ${ck("puTask",o.task,"할 일 마감 (당일 아침 8시)")}${ck("puRt",o.routine,"오늘 루틴 (시간이 적힌 항목, 그 시간에)")}
+      ${ck("puShift",o.shift,"근무 (전날 밤 9시)")}${ck("puBook",o.book,"독후감 다시 보기 (아침 9시)")}
+      ${ck("puGrat",o.grat,"감사일기 (밤 9시 30분, 다 쓴 날은 안 옴)")}${ck("puRev",o.rev,"복기 (주말·월말 저녁)")}
+    </div>
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px">${on?`<span class="row" style="gap:6px"><button type="button" class="small ghost" id="puTest">시험 알림</button><button type="button" class="small ghost danger" id="puOff">끄기</button></span>`:"<span></span>"}
+      <span class="row" style="gap:6px"><button type="button" class="ghost" id="puClose">닫기</button><button class="primary">저장</button></span></div></form>`);
+  const g=id=>document.getElementById(id);
+  g("puClose").onclick=closeSheet;if(g("puOn"))g("puOn").onclick=pushOn;if(g("puOff"))g("puOff").onclick=pushOff;
+  if(g("puTest"))g("puTest").onclick=async()=>{const t=Date.now()+60e3;let L=[];try{L=JSON.parse(localStorage.getItem("sucheop-pushtest")||"[]").filter(x=>x.t>Date.now()-3600e3);}catch(e){}
+    L.push({k:"test-"+t,t,title:"시험 알림",body:"푸시 알림이 잘 와요"});try{localStorage.setItem("sucheop-pushtest",JSON.stringify(L));}catch(e){}
+    await pushSync(false);toast("시험 알림을 예약했어요. 5~15분 안에 와요");};
+  g("puForm").onsubmit=e=>{e.preventDefault();S.pushOpt={ev:Number(g("puEv").value),evDay:g("puEvDay").checked,task:g("puTask").checked,routine:g("puRt").checked,shift:g("puShift").checked,
+    book:g("puBook").checked,grat:g("puGrat").checked,rev:g("puRev").checked,shared:g("puShared").checked,newShared:g("puNew").checked};save();pushSync(false);closeSheet();toast("알림 설정을 저장했어요");};
+}
+
 /* ---------- 감사일기 5가지 ---------- */
 function gratOf(ds){const g=dayRec(ds).grat;return Array.isArray(g)?g:[];}
 function gratN(ds){return gratOf(ds).filter(x=>x&&x.trim()).length;}
@@ -2196,6 +2279,7 @@ function settingsSheet(){
     <div class="strip" id="sPrev"></div>
     ${window.claude?"":`<label class="row" style="gap:8px"><input type="checkbox" id="sStock" ${S.stockOn?"checked":""} style="width:18px;height:18px;accent-color:var(--accent)">주식 기능 쓰기 <span class="note">(주식 탭, 주식 일정, 매매 글귀, 근무 자동 기록)</span></label>`}
     ${groupBlock()}
+    ${IS_APP&&FB_CONFIG?`<button type="button" class="small" data-act="pushOpen" style="align-self:flex-start">푸시 알림 ${pushSubJSON()?"· 켜짐":"켜기"}</button>`:""}
     ${IS_APP&&FB_CONFIG?`<button type="button" class="small" data-act="bkOpen" style="align-self:flex-start">자동 백업 ${bkCode()?"· 켜짐 ("+bkFmt(bkAt())+")":"켜기"}</button>`:""}
     <div class="row" style="gap:6px"><button type="button" class="small ghost" data-act="exportData">백업 복사</button><button type="button" class="small ghost" data-act="importOpen">백업 붙여넣기</button></div>
     <div class="row" style="justify-content:flex-end"><button type="button" class="ghost" id="sCancel">취소</button><button class="primary">저장</button></div>
@@ -2373,6 +2457,7 @@ document.addEventListener("click",e=>{
   else if(a==="newBook"){bookSheet(null);}
   else if(a==="editNotdo"){notdoSheet();}
   else if(a==="bkOpen"){bkSheet(false);}
+  else if(a==="pushOpen"){pushSheet();}
   else if(a==="revType"){revType=el.dataset.v;revKey=null;render();}
   else if(a==="revNav"){revKey=revShift(revType,revKey,Number(el.dataset.v));render();}
   else if(a==="revGo"){revKey=el.dataset.k;render();window.scrollTo(0,0);}
