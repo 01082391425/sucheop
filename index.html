@@ -1320,7 +1320,10 @@ function running(){return S.logs.find(l=>!l.e);}
 function startCat(c){const now=Date.now();const r=running();if(r){r.e=now;if(r.cat===c){save();render();toast(`${c} 기록을 멈췄어요`);return;}}
   S.logs.push({id:uidGen(),cat:c,s:now,e:null});save();render();toast(`${c} 시작`);}
 function stopRun(){const r=running();if(r){r.e=Date.now();save();render();toast("기록을 멈췄어요");}}
-function minsFor(date){const o={};S.logs.forEach(l=>{if(dateOfMs(l.s)!==date)return;const e=l.e||Date.now();o[l.cat]=(o[l.cat]||0)+Math.max(0,(e-l.s)/6e4);});return o;}
+function dayBounds(date){const a=parseD(date).getTime();const b=new Date(a);b.setDate(b.getDate()+1);return [a,b.getTime()];}
+function logsOn(date){const [a,b]=dayBounds(date);return S.logs.filter(l=>{const e=l.e||Date.now();return l.s<b&&(e>a||(e===l.s&&l.s>=a));});}
+function clipMins(l,date){const [a,b]=dayBounds(date);const e=l.e||Date.now();return Math.max(0,(Math.min(e,b)-Math.max(l.s,a))/6e4);}
+function minsFor(date){const o={};logsOn(date).forEach(l=>{o[l.cat]=(o[l.cat]||0)+clipMins(l,date);});return o;}
 function sumM(o){return Object.values(o).reduce((a,b)=>a+b,0);}
 function hm(m){m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?`${h}시간${r?" "+r+"분":""}`:`${r}분`;}
 function hShort(m){return (m/60).toFixed(m>=600?0:1)+"h";}
@@ -1388,7 +1391,7 @@ function vDay(){
   if(workOK&&ensureWorkLog(logDate))save();
   const t=todayStr();const isT=logDate===t;const d=parseD(logDate);const sh=shiftOf(logDate);
   const mins=minsFor(logDate);const r=running();const rec=dayRec(logDate);
-  const entries=S.logs.filter(l=>dateOfMs(l.s)===logDate).sort((a,b)=>a.s-b.s);
+  const entries=logsOn(logDate).sort((a,b)=>a.s-b.s);const [dA,dB]=dayBounds(logDate);
   const catBtns=cats().map(([c,col])=>{const on=r&&r.cat===c&&isT;
     return `<button class="catbtn ${on?"on":""}" data-act="startCat" data-c="${c}" style="--cc:${col}" aria-pressed="${!!on}">
       <span class="cdot"></span><span class="cname">${c}</span><span class="ctime mono">${on?hm((Date.now()-r.s)/6e4):mins[c]?hm(mins[c]):""}</span></button>`;}).join("");
@@ -1407,7 +1410,7 @@ function vDay(){
     ${stackBar(mins)}
     <div class="legend">${cats().map(([c,col])=>`<button class="lg lgbtn" data-act="logCat" data-c="${esc(c)}"><span class="cdot" style="background:${col}"></span>${esc(c)} <b class="mono">${mins[c]?hm(mins[c]):"+"}</b></button>`).join("")}</div>
     <p class="note" style="margin:0">항목을 누르면 한 시간을 적을 수 있어요. 아래 기록을 누르면 고칠 수 있어요.</p>
-    <div>${entries.length?entries.map(l=>`<div class="lrow" data-act="editLog" data-id="${l.id}" style="cursor:pointer"><span class="cdot" style="background:${catColor(l.cat)}"></span><span class="mono small">${tStr(l.s)}–${l.e?tStr(l.e):"진행 중"}</span><span style="flex:1">${esc(l.cat)}${l.note?` <span class="muted small">· ${esc(l.note)}</span>`:""}${l.rt?' <span class="label">루틴</span>':""}${l.auto?' <span class="label">근무 기본값</span>':""}</span><span class="mono small muted">${hm(((l.e||Date.now())-l.s)/6e4)}</span>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
+    <div>${entries.length?entries.map(l=>`<div class="lrow" data-act="editLog" data-id="${l.id}" style="cursor:pointer"><span class="cdot" style="background:${catColor(l.cat)}"></span><span class="mono small">${l.s<dA?'<span class="muted">전날</span> ':''}${tStr(l.s)}–${l.e?(l.e>dB?'<span class="muted">다음날</span> ':'')+tStr(l.e):"진행 중"}</span><span style="flex:1">${esc(l.cat)}${l.note?` <span class="muted small">· ${esc(l.note)}</span>`:""}${l.rt?' <span class="label">루틴</span>':""}${l.auto?' <span class="label">근무 기본값</span>':""}</span><span class="mono small muted">${(l.s<dA||(l.e||Date.now())>dB)?`이날 ${hm(clipMins(l,logDate))} / 전체 `:""}${hm(((l.e||Date.now())-l.s)/6e4)}</span>${l.e?"":`<button class="small primary" data-act="stopRun">종료</button>`}<button class="ghost small danger" data-act="delLog" data-id="${l.id}" aria-label="삭제">✕</button></div>`).join(""):`<div class="empty">이 날 찍은 시간이 없어요.</div>`}</div>
     <div class="row" style="justify-content:flex-end"><button class="ghost small" data-act="catEdit">항목 관리</button><button class="small" data-act="addLog">+ 직접 추가</button></div>
   </section>
   <section class="panel stack" style="gap:10px">
