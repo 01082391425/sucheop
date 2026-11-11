@@ -1844,45 +1844,54 @@ function head(title,sub,extra){
   return `<header class="top"><div><div class="label">${sub}</div><h1>${title}</h1></div>${extra||""}</header>`;
 }
 
-function vStockWrap(){return `<div class="toggle" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">일정</button><button data-act="stockSub" data-v="trade" aria-pressed="${stockSub==="trade"}">매매 노트</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치</button></div>`+(stockSub==="fib"?vFib():stockSub==="trade"?vTrade():vStock());}
+function vStockWrap(){return `<style>.stog button{white-space:nowrap;font-size:13px;padding-left:4px;padding-right:4px}</style><div class="toggle stog" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">일정</button><button data-act="stockSub" data-v="trade" aria-pressed="${stockSub==="trade"}">매매 노트</button><button data-act="stockSub" data-v="cat" aria-pressed="${stockSub==="cat"}">호재</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치</button></div>`+(stockSub==="fib"?vFib():stockSub==="trade"?vTrade():stockSub==="cat"?vCatalyst():vStock());}
 let trDate=todayStr(), trMode=null, trT=null;
 const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["pick","오늘 볼 종목","종목 · 재료 · 거차재시 유실기 점수"],["plan","매수·손절 계획","1차/2차 진입가 · 손절 · 익절"],["unc","불확실성 오늘 체크","보드에서 세기·반영이 달라진 것 · 오늘 이걸로 빠지면 살지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
 const TR_RV=[["did","오늘 한 매매","종목 · 매수/매도가 · 손익"],["why","시나리오와 달랐던 점","계획에 없던 매매, 놓친 자리"],["good","잘한 점",""],["bad","아쉬운 점",""],["next","다음에 바꿀 것",""]];
 function trRec(ds){S.trade=S.trade||{};const o=S.trade[ds]||{};o.sc=o.sc||{};o.rv=o.rv||{};return o;}
 function trHas(o){return o&&Object.values(o).some(v=>String(v||"").trim());}
-const UNC_ST=["시장 미반영","일부 반영","충분히 반영","해소"];
-function uncList(all){return (S.unc||[]).filter(u=>all||u.st!=="해소");}
-function uncDots(n){return `<span aria-label="세기 ${n}" style="letter-spacing:1px;color:var(--up)">${"●".repeat(n||0)}<span style="opacity:.25">${"●".repeat(5-(n||0))}</span></span>`;}
-function uncBoard(){const L=uncList();const gone=(S.unc||[]).length-L.length;
-  return `<section class="panel stack" style="gap:6px;border-left:4px solid var(--up)"><div class="row" style="justify-content:space-between"><h3>⚠️ 불확실성 보드</h3><button class="small ghost" data-act="uncNew">+ 추가</button></div>
-    <p class="note" style="margin:0">시장에 악재가 될 수 있는 것들. 세기와 시장 반영 정도를 보고, 이걸로 하락하면 매수 기회로 봐요.</p>
-    ${L.length?L.map(u=>{const last=(u.log||[]).slice(-1)[0];return `<button class="lrow" data-act="uncEdit" data-id="${u.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0;display:block">
-      <div class="row" style="justify-content:space-between;gap:6px"><b>${esc(u.title)}</b>${uncDots(u.str)}</div>
-      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(u.st||UNC_ST[0])}</span>${u.note?`<span class="small muted">${esc(u.note.split("\n")[0]).slice(0,40)}</span>`:""}</div>
-      ${last?`<div class="small muted" style="margin-top:2px">${last.d.slice(5).replace("-","/")} · ${esc(last.t).slice(0,60)}</div>`:""}</button>`;}).join(""):`<div class="empty">아직 없어요. + 추가로 지켜볼 악재를 넣어 보세요.</div>${workOK&&!(S.unc||[]).length?`<button class="small ghost" data-act="uncSeed" style="align-self:flex-start">내가 말한 4가지로 채우기</button>`:""}`}
-    ${gone?`<button class="ghost small" data-act="uncDone" style="align-self:flex-start">해소된 것 ${gone}개 보기</button>`:""}</section>`;}
-function uncSheet(u,showDone){
-  if(showDone){const D=(S.unc||[]).filter(x=>x.st==="해소");sheet(`<div class="stack"><h2>해소된 불확실성</h2>${D.map(x=>`<button class="lrow" data-act="uncEdit" data-id="${x.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0"><b style="flex:1">${esc(x.title)}</b>${uncDots(x.str)}</button>`).join("")}<div class="row" style="justify-content:flex-end"><button class="ghost" id="ucClose">닫기</button></div></div>`);document.getElementById("ucClose").onclick=closeSheet;return;}
-  const isNew=!u;u=u||{title:"",note:"",str:3,st:UNC_ST[0],plan:"",log:[]};let str=u.str||3,st=u.st||UNC_ST[0];
+const BK={unc:{title:"⚠️ 불확실성 보드",desc:"시장에 악재가 될 수 있는 것들. 세기와 시장 반영 정도를 보고, 이걸로 하락하면 매수 기회로 봐요.",color:"var(--down)",st:["시장 미반영","일부 반영","충분히 반영","해소"],strLab:"세기 (시장에 줄 충격)",plan:"이걸로 하락하면",planPh:"예: 지수 -3% 이상이면 반도체 대장주 1차 매수",titlePh:"예: 미국 10년물 국채금리 5%",notePh:"예: 방향성 · 연준 발언 · 입찰 결과",logPh:"예: 이스라엘 휴전 동의, 유가 -4%",name:"불확실성",empty:"지켜볼 악재"},
+  cat:{title:"🚀 호재 보드",desc:"불확실성이 풀리거나 새로 생길 호재들. 시장이 아직 반영하지 않았을 때 수혜주를 먼저 찾아 둬요.",color:"var(--up)",st:["시장 미반영","일부 반영","충분히 반영","끝남"],strLab:"세기 (시장에 줄 힘)",plan:"이게 현실화되면",planPh:"예: 관련 대장주 눌림목에서 1차 매수, 갭 상승이면 추격 안 함",titlePh:"예: 미-이란 종전 합의",notePh:"예: 수혜 섹터·종목 · 확인할 신호",logPh:"예: 협상 일정 확정, 관련주 거래대금 증가",name:"호재",empty:"기다리는 호재"}};
+const UNC_ST=BK.unc.st;
+function bkArr(k){return S[k]||[];}
+function uncList(all){return bkArr("unc").filter(u=>all||u.st!=="해소");}
+function uncDots(n,c){return `<span aria-label="세기 ${n}" style="letter-spacing:1px;color:${c||"var(--down)"}">${"●".repeat(n||0)}<span style="opacity:.25">${"●".repeat(5-(n||0))}</span></span>`;}
+function bkBoard(k){const C=BK[k];const end=C.st[3];const A=bkArr(k);const L=A.filter(u=>u.st!==end);const gone=A.length-L.length;
+  return `<section class="panel stack" style="gap:6px;border-left:4px solid ${C.color}"><div class="row" style="justify-content:space-between"><h3>${C.title}</h3><button class="small ghost" data-act="bkNew" data-k="${k}">+ 추가</button></div>
+    <p class="note" style="margin:0">${C.desc}</p>
+    ${L.length?L.map(u=>{const last=(u.log||[]).slice(-1)[0];return `<button class="lrow" data-act="bkEdit" data-k="${k}" data-id="${u.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0;display:block">
+      <div class="row" style="justify-content:space-between;gap:6px"><b>${esc(u.title)}</b>${uncDots(u.str,C.color)}</div>
+      <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(u.st||C.st[0])}</span>${u.note?`<span class="small muted">${esc(u.note.split("\n")[0]).slice(0,40)}</span>`:""}</div>
+      ${u.plan?`<div class="small" style="margin-top:2px">→ ${esc(u.plan.split("\n")[0]).slice(0,50)}</div>`:""}
+      ${last?`<div class="small muted" style="margin-top:2px">${last.d.slice(5).replace("-","/")} · ${esc(last.t).slice(0,60)}</div>`:""}</button>`;}).join(""):`<div class="empty">아직 없어요. + 추가로 ${C.empty}를 넣어 보세요.</div>${k==="unc"&&workOK&&!A.length?`<button class="small ghost" data-act="uncSeed" style="align-self:flex-start">내가 말한 4가지로 채우기</button>`:""}`}
+    ${gone?`<button class="ghost small" data-act="bkDone" data-k="${k}" style="align-self:flex-start">${end}된 것 ${gone}개 보기</button>`:""}</section>`;}
+function uncBoard(){return bkBoard("unc");}
+function vCatalyst(){return bkBoard("cat")+`<p class="note" style="margin-top:10px">불확실성 보드(매매 노트)와 짝이에요. 악재가 풀리면 여기로 옮겨 적어 두세요.</p>`;}
+function bkSheet(k,u,showDone){const C=BK[k];const end=C.st[3];
+  if(showDone){const D=bkArr(k).filter(x=>x.st===end);sheet(`<div class="stack"><h2>${end}된 ${C.name}</h2>${D.map(x=>`<button class="lrow" data-act="bkEdit" data-k="${k}" data-id="${x.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0"><b style="flex:1">${esc(x.title)}</b>${uncDots(x.str,C.color)}</button>`).join("")}<div class="row" style="justify-content:flex-end"><button class="ghost" id="ucClose">닫기</button></div></div>`);document.getElementById("ucClose").onclick=closeSheet;return;}
+  const isNew=!u;u=u||{title:"",note:"",str:3,st:C.st[0],plan:"",log:[]};let str=u.str||3,st=u.st||C.st[0];
   const logs=(u.log||[]).slice().reverse().map(l=>`<div class="bnote"><span class="label">${l.d.slice(5).replace("-","/")} · 세기 ${l.str} · ${esc(l.st)}</span><div>${esc(l.t)}</div></div>`).join("");
-  sheet(`<form class="stack" id="ucForm"><h2>${isNew?"불확실성 추가":"불확실성"}</h2>
-    <label class="field"><span class="label">무엇인가요</span><input id="ucTitle" required value="${esc(u.title)}" placeholder="예: 미국 10년물 국채금리 5%"></label>
-    <label class="field"><span class="label">세부 · 지켜볼 것</span><textarea id="ucNote" rows="3" placeholder="예: 방향성 · 연준 발언 · 입찰 결과">${esc(u.note||"")}</textarea></label>
-    <div class="field"><span class="label">세기 (시장에 줄 충격)</span><div class="row" style="gap:6px" id="ucStr">${[1,2,3,4,5].map(n=>`<button type="button" class="small ${n===str?"primary":"ghost"}" data-n="${n}">${n}</button>`).join("")}</div></div>
-    <div class="field"><span class="label">시장이 반영했나</span><div class="row" style="gap:6px;flex-wrap:wrap" id="ucSt">${UNC_ST.map(v=>`<button type="button" class="small ${v===st?"primary":"ghost"}" data-v="${v}">${v}</button>`).join("")}</div></div>
-    <label class="field"><span class="label">이걸로 하락하면</span><textarea id="ucPlan" rows="2" placeholder="예: 지수 -3% 이상이면 반도체 대장주 1차 매수">${esc(u.plan||"")}</textarea></label>
-    <label class="field"><span class="label">오늘 변화 <span class="note">(적으면 날짜와 함께 기록에 쌓여요)</span></span><textarea id="ucLog" rows="2" placeholder="예: 이스라엘 휴전 동의, 유가 -4%"></textarea></label>
+  sheet(`<form class="stack" id="ucForm"><h2>${isNew?C.name+" 추가":C.name}</h2>
+    <label class="field"><span class="label">무엇인가요</span><input id="ucTitle" required value="${esc(u.title)}" placeholder="${C.titlePh}"></label>
+    <label class="field"><span class="label">세부 · 지켜볼 것</span><textarea id="ucNote" rows="3" placeholder="${C.notePh}">${esc(u.note||"")}</textarea></label>
+    <div class="field"><span class="label">${C.strLab}</span><div class="row" style="gap:6px" id="ucStr">${[1,2,3,4,5].map(n=>`<button type="button" class="small ${n===str?"primary":"ghost"}" data-n="${n}">${n}</button>`).join("")}</div></div>
+    <div class="field"><span class="label">시장이 반영했나</span><div class="row" style="gap:6px;flex-wrap:wrap" id="ucSt">${C.st.map(v=>`<button type="button" class="small ${v===st?"primary":"ghost"}" data-v="${v}">${v}</button>`).join("")}</div></div>
+    <label class="field"><span class="label">${C.plan}</span><textarea id="ucPlan" rows="2" placeholder="${C.planPh}">${esc(u.plan||"")}</textarea></label>
+    <label class="field"><span class="label">오늘 변화 <span class="note">(적으면 날짜와 함께 기록에 쌓여요)</span></span><textarea id="ucLog" rows="2" placeholder="${C.logPh}"></textarea></label>
     ${logs?`<div class="stack" style="gap:6px"><span class="label">지난 기록</span>${logs}</div>`:""}
-    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="ucDel">삭제</button>`}<div class="row"><button type="button" class="ghost" id="ucCancel">닫기</button><button class="primary">저장</button></div></div></form>`);
+    ${k==="unc"&&!isNew?`<button type="button" class="ghost small" id="ucMove" style="align-self:flex-start">🚀 호재 보드로 옮기기 (악재가 풀릴 때)</button>`:""}
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="ucDel">삭제</button>`}<div class="row"><button type="button" class="ghost" id="ucCancel">닫기</button><button class="primary" id="ucSave">저장</button></div></div></form>`);
   document.querySelectorAll("#ucStr button").forEach(b=>b.onclick=()=>{str=Number(b.dataset.n);document.querySelectorAll("#ucStr button").forEach(x=>x.className="small "+(Number(x.dataset.n)===str?"primary":"ghost"));});
   document.querySelectorAll("#ucSt button").forEach(b=>b.onclick=()=>{st=b.dataset.v;document.querySelectorAll("#ucSt button").forEach(x=>x.className="small "+(x.dataset.v===st?"primary":"ghost"));});
   document.getElementById("ucCancel").onclick=closeSheet;
-  const del=document.getElementById("ucDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.unc=(S.unc||[]).filter(x=>x.id!==u.id);save();closeSheet();render();};
+  const del=document.getElementById("ucDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S[k]=bkArr(k).filter(x=>x.id!==u.id);save();closeSheet();render();};
+  const mv=document.getElementById("ucMove");if(mv)mv.onclick=()=>{const d=todayStr();S.cat=bkArr("cat");S.cat.push({id:uidGen(),title:u.title+" (해소 → 호재)",note:u.note||"",str:u.str||3,st:"시장 미반영",plan:"",log:[{d,t:"불확실성 보드에서 옮김",str:u.str||3,st:"시장 미반영"}]});
+    u.st="해소";u.log=u.log||[];u.log.push({d,t:"호재 보드로 옮김",str:u.str,st:"해소"});save();closeSheet();render();toast("호재 보드에 넣었어요");};
   document.getElementById("ucForm").onsubmit=ev=>{ev.preventDefault();const title=document.getElementById("ucTitle").value.trim();if(!title)return;
     const t=document.getElementById("ucLog").value.trim();const changed=!isNew&&(str!==u.str||st!==u.st);
     Object.assign(u,{title,note:document.getElementById("ucNote").value.trim(),plan:document.getElementById("ucPlan").value.trim(),str,st});
     u.log=u.log||[];if(t||changed||isNew)u.log.push({d:todayStr(),t:t||(isNew?"추가":"세기·반영 변경"),str,st});
-    S.unc=S.unc||[];if(isNew){u.id=uidGen();S.unc.push(u);}save();closeSheet();render();toast("저장했어요");};}
+    S[k]=bkArr(k);if(isNew){u.id=uidGen();S[k].push(u);}save();closeSheet();render();toast("저장했어요");};}
 function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate);const r=trRec(trDate);
   const mode=trMode||(isT&&new Date().getHours()*60+new Date().getMinutes()<15*60+30&&!trHas(r.rv)?"sc":"rv");
   const fld=(sec,[k,lab,ph])=>`<label class="field"><span class="label">${lab}</span><textarea data-tr="${sec}.${k}" rows="3" placeholder="${esc(ph)}">${esc((r[sec]||{})[k]||"")}</textarea></label>`;
@@ -2562,10 +2571,11 @@ document.addEventListener("click",e=>{
   else if(a==="trMode"){trMode=el.dataset.v;render();}
   else if(a==="trFollow"){S.trade=S.trade||{};const r=trRec(trDate);r.rv=Object.assign({},r.rv,{follow:r.rv.follow===el.dataset.v?"":el.dataset.v});S.trade[trDate]=r;save();render();}
   else if(a==="trCsv"){trExport();}
-  else if(a==="uncNew"){uncSheet(null);}
+  else if(a==="bkNew"){bkSheet(el.dataset.k,null);}
+  else if(a==="bkEdit"){const k=el.dataset.k;bkSheet(k,bkArr(k).find(x=>x.id===el.dataset.id));}
+  else if(a==="bkDone"){bkSheet(el.dataset.k,null,true);}
   else if(a==="uncSeed"){if((S.unc||[]).length)return;const d=todayStr();S.unc=[["미-이란 전쟁 종식 과정","이스라엘, 중국, 러시아 제스처"],["러-우크라이나 전쟁 종식 과정","미국의 제스처"],["미국 10년물 국채금리 5%","방향성"],["젠슨 황 불륜 결과","상·하원의 발언"]].map(([title,note])=>({id:uidGen(),title,note,str:3,st:"시장 미반영",plan:"",log:[{d,t:"추가",str:3,st:"시장 미반영"}]}));save();render();toast("4가지를 넣었어요 · 눌러서 세기와 반영 정도를 맞춰 주세요");}
-  else if(a==="uncEdit"){uncSheet((S.unc||[]).find(x=>x.id===el.dataset.id));}
-  else if(a==="uncDone"){uncSheet(null,true);}
+
   else if(a==="trCopy"){const r=trRec(trDate);const L=[`# ${trDate} 매매`,"## 시나리오",...TR_SC.map(([k,lab])=>`- **${lab}**: ${String(r.sc[k]||"").trim()}`),"## 복기",`- **시나리오대로**: ${r.rv.follow||""}`,...TR_RV.map(([k,lab])=>`- **${lab}**: ${String(r.rv[k]||"").trim()}`)].join("\n");
     (navigator.clipboard?navigator.clipboard.writeText(L):Promise.reject()).then(()=>toast("복사했어요 · 옵시디언에 붙여넣으세요")).catch(()=>toast("복사가 안 됐어요"));}
   else if(a==="startCat"){startCat(el.dataset.c);}
