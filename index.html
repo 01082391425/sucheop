@@ -1846,7 +1846,7 @@ function head(title,sub,extra){
 
 function vStockWrap(){return `<style>.stog button{white-space:nowrap;font-size:13px;padding-left:4px;padding-right:4px}</style><div class="toggle stog" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">일정</button><button data-act="stockSub" data-v="trade" aria-pressed="${stockSub==="trade"}">매매 노트</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치</button></div>`+(stockSub==="fib"?vFib():stockSub==="trade"?vTrade():vStock());}
 let trDate=todayStr(), trMode=null, trT=null;
-const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["pick","오늘 볼 종목","종목 · 재료 · 거차재시 유실기 점수"],["plan","매수·손절 계획","1차/2차 진입가 · 손절 · 익절"],["unc","불확실성 오늘 체크","보드에서 세기·반영이 달라진 것 · 오늘 이걸로 빠지면 살지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
+const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["unc","불확실성 오늘 체크","보드에서 세기·반영이 달라진 것 · 오늘 이걸로 빠지면 살지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
 const TR_RV=[["did","오늘 한 매매","종목 · 매수/매도가 · 손익"],["why","시나리오와 달랐던 점","계획에 없던 매매, 놓친 자리"],["good","잘한 점",""],["bad","아쉬운 점",""],["next","다음에 바꿀 것",""]];
 function trRec(ds){S.trade=S.trade||{};const o=S.trade[ds]||{};o.sc=o.sc||{};o.rv=o.rv||{};return o;}
 function trHas(o){return o&&Object.values(o).some(v=>String(v||"").trim());}
@@ -1862,6 +1862,7 @@ function bkBoard(k){const C=BK[k];const end=C.st[3];const A=bkArr(k);const L=A.f
     ${L.length?L.map(u=>{const last=(u.log||[]).slice(-1)[0];return `<button class="lrow" data-act="bkEdit" data-k="${k}" data-id="${u.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0;display:block">
       <div class="row" style="justify-content:space-between;gap:6px"><b>${esc(u.title)}</b>${uncDots(u.str,C.color)}</div>
       <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(u.st||C.st[0])}</span>${u.note?`<span class="small muted">${esc(u.note.split("\n")[0]).slice(0,40)}</span>`:""}</div>
+      ${(u.subs||[]).filter(b=>b.st!==C.st[3]).map(b=>{const bl=(b.log||[]).slice(-1)[0];return `<div class="small" style="margin-top:2px;padding-left:8px">└ <b>${esc(b.t)}</b> <span class="muted">· ${esc(b.st)}${bl&&bl.t!=="추가"?` · ${esc(bl.t).slice(0,30)}`:""}</span></div>`;}).join("")}
       ${u.plan?`<div class="small" style="margin-top:2px">→ ${esc(u.plan.split("\n")[0]).slice(0,50)}</div>`:""}
       ${last?`<div class="small muted" style="margin-top:2px">${last.d.slice(5).replace("-","/")} · ${esc(last.t).slice(0,60)}</div>`:""}</button>`;}).join(""):`<div class="empty">아직 없어요. + 추가로 ${C.empty}를 넣어 보세요.</div>${k==="unc"&&workOK&&!A.length?`<button class="small ghost" data-act="uncSeed" style="align-self:flex-start">내가 말한 4가지로 채우기</button>`:""}`}
     ${gone?`<button class="ghost small" data-act="bkDone" data-k="${k}" style="align-self:flex-start">${end}된 것 ${gone}개 보기</button>`:""}</section>`;}
@@ -1869,33 +1870,138 @@ function uncBoard(){return bkBoard("unc");}
 function vCatalyst(){return bkBoard("cat")+`<p class="note" style="margin-top:10px">불확실성 보드(매매 노트)와 짝이에요. 악재가 풀리면 여기로 옮겨 적어 두세요.</p>`;}
 function bkSheet(k,u,showDone){const C=BK[k];const end=C.st[3];
   if(showDone){const D=bkArr(k).filter(x=>x.st===end);sheet(`<div class="stack"><h2>${end}된 ${C.name}</h2>${D.map(x=>`<button class="lrow" data-act="bkEdit" data-k="${k}" data-id="${x.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0"><b style="flex:1">${esc(x.title)}</b>${uncDots(x.str,C.color)}</button>`).join("")}<div class="row" style="justify-content:flex-end"><button class="ghost" id="ucClose">닫기</button></div></div>`);document.getElementById("ucClose").onclick=closeSheet;return;}
-  const isNew=!u;u=u||{title:"",note:"",str:3,st:C.st[0],plan:"",log:[]};let str=u.str||3,st=u.st||C.st[0];
-  const logs=(u.log||[]).slice().reverse().map(l=>`<div class="bnote"><span class="label">${l.d.slice(5).replace("-","/")} · 세기 ${l.str} · ${esc(l.st)}</span><div>${esc(l.t)}</div></div>`).join("");
+  const isNew=!u;const w=JSON.parse(JSON.stringify(u||{title:"",note:"",str:3,st:C.st[0],plan:"",log:[],subs:[]}));w.subs=w.subs||[];w.log=w.log||[];w.str=w.str||3;w.st=w.st||C.st[0];
+  const draw=()=>{const logs=w.log.slice().reverse().map(l=>`<div class="bnote"><span class="label">${l.d.slice(5).replace("-","/")} · 세기 ${l.str} · ${esc(l.st)}</span><div>${esc(l.t)}</div></div>`).join("");
   sheet(`<form class="stack" id="ucForm"><h2>${isNew?C.name+" 추가":C.name}</h2>
-    <label class="field"><span class="label">무엇인가요</span><input id="ucTitle" required value="${esc(u.title)}" placeholder="${C.titlePh}"></label>
-    <label class="field"><span class="label">세부 · 지켜볼 것</span><textarea id="ucNote" rows="3" placeholder="${C.notePh}">${esc(u.note||"")}</textarea></label>
-    <div class="field"><span class="label">${C.strLab}</span><div class="row" style="gap:6px" id="ucStr">${[1,2,3,4,5].map(n=>`<button type="button" class="small ${n===str?"primary":"ghost"}" data-n="${n}">${n}</button>`).join("")}</div></div>
-    <div class="field"><span class="label">시장이 반영했나</span><div class="row" style="gap:6px;flex-wrap:wrap" id="ucSt">${C.st.map(v=>`<button type="button" class="small ${v===st?"primary":"ghost"}" data-v="${v}">${v}</button>`).join("")}</div></div>
-    <label class="field"><span class="label">${C.plan}</span><textarea id="ucPlan" rows="2" placeholder="${C.planPh}">${esc(u.plan||"")}</textarea></label>
-    <label class="field"><span class="label">오늘 변화 <span class="note">(적으면 날짜와 함께 기록에 쌓여요)</span></span><textarea id="ucLog" rows="2" placeholder="${C.logPh}"></textarea></label>
+    <label class="field"><span class="label">무엇인가요</span><input id="ucTitle" required value="${esc(w.title)}" placeholder="${C.titlePh}"></label>
+    <label class="field"><span class="label">세부 · 지켜볼 것</span><textarea id="ucNote" rows="2" placeholder="${C.notePh}">${esc(w.note||"")}</textarea></label>
+    <div class="field"><span class="label">${C.strLab}</span><div class="row" style="gap:6px">${[1,2,3,4,5].map(n=>`<button type="button" class="small ${n===w.str?"primary":"ghost"}" data-n="${n}">${n}</button>`).join("")}</div></div>
+    <div class="field"><span class="label">시장이 반영했나</span><div class="row" style="gap:6px;flex-wrap:wrap">${C.st.map(v=>`<button type="button" class="small ${v===w.st?"primary":"ghost"}" data-sv="${v}">${v}</button>`).join("")}</div></div>
+    <div class="field"><span class="label">갈래 <span class="note">(진행되면서 새로 생기는 변수 · 나라 · 인물별로 따로 적어요)</span></span>
+      <div class="stack" style="gap:8px">${w.subs.map((b,i)=>`<div class="bnote" style="border-style:solid;white-space:normal"><div class="row" style="gap:6px"><input data-bt="${i}" value="${esc(b.t)}" style="flex:1" placeholder="갈래"><button type="button" class="ghost small danger" data-bdel="${i}" aria-label="갈래 삭제">✕</button></div>
+        <div class="row" style="gap:4px;flex-wrap:wrap;margin-top:6px">${C.st.map(v=>`<button type="button" class="small ${b.st===v?"primary":"ghost"}" data-bst="${i}" data-v="${v}">${v}</button>`).join("")}</div>
+        ${(b.log||[]).map(l=>`<div class="small" style="margin-top:4px"><span class="muted">${l.d.slice(5).replace("-","/")}</span> ${esc(l.t)}</div>`).join("")}
+        <input data-blog="${i}" placeholder="이 갈래 진행 상황 추가" style="margin-top:6px;width:100%"></div>`).join("")}
+        <div class="row" style="gap:6px"><input id="ucSubNew" placeholder="${k==="unc"?"예: 이스라엘 제스처":"예: 수혜 섹터 확산"}" style="flex:1"><button type="button" class="small ghost" id="ucSubAdd">+ 갈래</button></div></div></div>
+    <label class="field"><span class="label">${C.plan}</span><textarea id="ucPlan" rows="2" placeholder="${C.planPh}">${esc(w.plan||"")}</textarea></label>
+    <label class="field"><span class="label">오늘 변화 (전체) <span class="note">(날짜와 함께 쌓여요)</span></span><textarea id="ucLog" rows="2" placeholder="${C.logPh}"></textarea></label>
     ${logs?`<div class="stack" style="gap:6px"><span class="label">지난 기록</span>${logs}</div>`:""}
     ${k==="unc"&&!isNew?`<button type="button" class="ghost small" id="ucMove" style="align-self:flex-start">🚀 호재 보드로 옮기기 (악재가 풀릴 때)</button>`:""}
-    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="ucDel">삭제</button>`}<div class="row"><button type="button" class="ghost" id="ucCancel">닫기</button><button class="primary" id="ucSave">저장</button></div></div></form>`);
-  document.querySelectorAll("#ucStr button").forEach(b=>b.onclick=()=>{str=Number(b.dataset.n);document.querySelectorAll("#ucStr button").forEach(x=>x.className="small "+(Number(x.dataset.n)===str?"primary":"ghost"));});
-  document.querySelectorAll("#ucSt button").forEach(b=>b.onclick=()=>{st=b.dataset.v;document.querySelectorAll("#ucSt button").forEach(x=>x.className="small "+(x.dataset.v===st?"primary":"ghost"));});
-  document.getElementById("ucCancel").onclick=closeSheet;
-  const del=document.getElementById("ucDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S[k]=bkArr(k).filter(x=>x.id!==u.id);save();closeSheet();render();};
-  const mv=document.getElementById("ucMove");if(mv)mv.onclick=()=>{const d=todayStr();S.cat=bkArr("cat");S.cat.push({id:uidGen(),title:u.title+" (해소 → 호재)",note:u.note||"",str:u.str||3,st:"시장 미반영",plan:"",log:[{d,t:"불확실성 보드에서 옮김",str:u.str||3,st:"시장 미반영"}]});
-    u.st="해소";u.log=u.log||[];u.log.push({d,t:"호재 보드로 옮김",str:u.str,st:"해소"});save();closeSheet();render();toast("호재 보드에 넣었어요");};
-  document.getElementById("ucForm").onsubmit=ev=>{ev.preventDefault();const title=document.getElementById("ucTitle").value.trim();if(!title)return;
-    const t=document.getElementById("ucLog").value.trim();const changed=!isNew&&(str!==u.str||st!==u.st);
-    Object.assign(u,{title,note:document.getElementById("ucNote").value.trim(),plan:document.getElementById("ucPlan").value.trim(),str,st});
-    u.log=u.log||[];if(t||changed||isNew)u.log.push({d:todayStr(),t:t||(isNew?"추가":"세기·반영 변경"),str,st});
-    S[k]=bkArr(k);if(isNew){u.id=uidGen();S[k].push(u);}save();closeSheet();render();toast("저장했어요");};}
+    <div class="row" style="justify-content:space-between">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="ucDel">삭제</button>`}<div class="row"><button type="button" class="ghost" id="ucCancel">닫기</button><button class="primary" id="ucSave">저장</button></div></div></form>`,!(isNew&&!w._drawn));w._drawn=1;
+  const $=id=>document.getElementById(id);
+  const grab=()=>{w.title=$("ucTitle").value.trim();w.note=$("ucNote").value.trim();w.plan=$("ucPlan").value.trim();
+    document.querySelectorAll("[data-bt]").forEach(x=>{w.subs[+x.dataset.bt].t=x.value;});
+    document.querySelectorAll("[data-blog]").forEach(x=>{const v=x.value.trim();if(v){const b=w.subs[+x.dataset.blog];b.log=b.log||[];b.log.push({d:todayStr(),t:v});x.value="";}});w._pending=$("ucLog").value;};
+  const redraw=()=>{grab();const pl=w._pending;const sy=document.querySelector(".sheet")?.scrollTop||0;draw();$("ucLog").value=pl||"";const sh=document.querySelector(".sheet");if(sh)sh.scrollTop=sy;};
+  document.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{w.str=Number(b.dataset.n);redraw();});
+  document.querySelectorAll("[data-sv]").forEach(b=>b.onclick=()=>{w.st=b.dataset.sv;redraw();});
+  document.querySelectorAll("[data-bst]").forEach(b=>b.onclick=()=>{const x=w.subs[+b.dataset.bst];if(x.st!==b.dataset.v){x.st=b.dataset.v;x.log=x.log||[];x.log.push({d:todayStr(),t:"→ "+x.st});}redraw();});
+  document.querySelectorAll("[data-bdel]").forEach(b=>b.onclick=()=>{w.subs.splice(+b.dataset.bdel,1);redraw();});
+  $("ucSubAdd").onclick=()=>{const v=$("ucSubNew").value.trim();if(!v)return;grab();w.subs.push({id:uidGen(),t:v,st:C.st[0],log:[{d:todayStr(),t:"추가"}]});const pl=w._pending;draw();$("ucLog").value=pl||"";};
+  $("ucCancel").onclick=closeSheet;
+  const del=$("ucDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S[k]=bkArr(k).filter(x=>x.id!==u.id);save();closeSheet();render();};
+  const mv=$("ucMove");if(mv)mv.onclick=()=>{grab();const d=todayStr();S.cat=bkArr("cat");S.cat.push({id:uidGen(),title:w.title+" (해소 → 호재)",note:w.note||"",str:w.str||3,st:"시장 미반영",plan:"",subs:JSON.parse(JSON.stringify(w.subs)).map(b=>Object.assign(b,{st:"시장 미반영"})),log:[{d,t:"불확실성 보드에서 옮김",str:w.str||3,st:"시장 미반영"}]});
+    const o=bkArr("unc").find(x=>x.id===u.id);if(o){o.st="해소";o.log=o.log||[];o.log.push({d,t:"호재 보드로 옮김",str:o.str,st:"해소"});}save();closeSheet();render();toast("호재 보드에 넣었어요");};
+  $("ucForm").onsubmit=ev=>{ev.preventDefault();grab();if(!w.title)return;const t=(w._pending||"").trim();delete w._pending;delete w._drawn;
+    const changed=!isNew&&(w.str!==u.str||w.st!==u.st);
+    if(t||changed||isNew)w.log.push({d:todayStr(),t:t||(isNew?"추가":"세기·반영 변경"),str:w.str,st:w.st});
+    S[k]=bkArr(k);if(isNew){w.id=uidGen();S[k].push(w);}else{const i=S[k].findIndex(x=>x.id===u.id);S[k][i]=w;}save();closeSheet();render();toast("저장했어요");};};
+  draw();}
+const SC_ITEMS=[["g","거래대금",15,"기준봉 1,000억↑ + 눌림 반등 때 최대 거래대금의 1/3~1/4 이상","기준봉 500억↑, 반등 거래대금 부족","기준봉 500억 미만 / 거래대금 말라 있음"],
+  ["c","차트",15,"통계낸 자리(①②③④) + 기준가·전저점 안 깨짐","눌림은 맞지만 통계 자리 아님","높은 자리 / 박스권 안 / 전저점 이탈"],
+  ["m","재료",20,"진행 중인 재료 2개 이상, 실수혜주","재료 1개 / 이미 반영된 재료","재료 없음 / 재료 소멸"],
+  ["s","시황",15,"오늘 주도 섹터 + 지수·미국 선물 우호","섹터 강한데 지수 약세 (또는 반대)","섹터 소외 + 지수 약세"],
+  ["l","유동성",10,"외국인·기관 골고루 수급 + 섹터로 돈이 몰림","한 주체만 매수","수급 이탈 (외인·기관 동반 매도)"],
+  ["p","실적",10,"실적 성장 확인 (호실적·턴어라운드)","실적은 기대만 있음","적자 지속 / 실적 악화"],
+  ["e","기대감",15,"앞으로 엮을 일정·정책·미국 모멘텀 + 섹터 대장","일정이 멀거나 2등주","기대할 것이 없음"]];
+const PK_ST=["관찰","매수","패스","정리"], MAT_ST=["진행 중","일부 반영","반영 끝","소멸"];
+const PK_RULES=[["base","기준봉 확인"],["stat","통계 자리"],["stop","손절가 정함"],["cash","현금 여유"]];
+function pkArr(){return S.picks||[];}
+function pkScore(p){const sc=p.score||{};let t=0,zero=false,miss=0;SC_ITEMS.forEach(([k])=>{const v=sc[k]&&sc[k].v;if(v==null||v==="")miss++;else{t+=Number(v);if(Number(v)===0)zero=true;}});return {t,zero,miss};}
+function pkVerdict(p){const {t,zero,miss}=pkScore(p);if(miss===SC_ITEMS.length)return ["점수 전","muted"];if(miss)return [`${miss}개 남음`,"muted"];if(zero)return ["0점 있음 · 패스","down"];return t>=90?["매수 가능","up"]:["89↓ 패스","down"];}
+const fmtN=n=>Number.isInteger(n)?String(n):n.toFixed(1);
+function pkBoard(ds){const A=pkArr();const open=A.filter(p=>p.st==="관찰"||p.st==="매수");const closed=A.length-open.length;
+  open.sort((a,b)=>((b.today||{})[ds]?1:0)-((a.today||{})[ds]?1:0)||(b.upd||0)-(a.upd||0));
+  return `<section class="panel stack" style="gap:6px;border-left:4px solid var(--accent)"><div class="row" style="justify-content:space-between"><h3>🎯 종목 선정</h3><button class="small ghost" data-act="pkNew">+ 종목</button></div>
+    <p class="note" style="margin:0">★ = 오늘 볼 종목. 점수는 매수 전에 매기고, 90점 이상 · 0점 없음일 때만 매수해요.</p>
+    ${open.length?open.map(p=>{const {t}=pkScore(p);const [vd,vc]=pkVerdict(p);const on=(p.today||{})[ds];const mats=(p.mats||[]).filter(m=>m.st!=="소멸");
+      return `<div class="lrow" style="border-top:1px solid var(--line);padding:9px 0;align-items:flex-start">
+        <button class="ghost small" data-act="pkStar" data-id="${p.id}" aria-label="오늘 볼 종목" style="padding:2px 6px;color:${on?"var(--up)":"var(--muted)"}">${on?"★":"☆"}</button>
+        <button data-act="pkEdit" data-id="${p.id}" style="flex:1;min-width:0;text-align:left;background:none;border:0;padding:0">
+          <div class="row" style="justify-content:space-between;gap:6px"><b>${esc(p.name)}</b><span class="mono small" style="color:var(--${vc==="muted"?"muted":vc})">${fmtN(t)}점 · ${vd}</span></div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(p.st)}</span>${mats.length?`<span class="small muted">재료 ${mats.length} · ${esc(mats[0].t).slice(0,28)}</span>`:""}</div>
+          ${(p.plan&&(p.plan.b1||p.plan.stop))?`<div class="small" style="margin-top:2px">1차 ${esc(p.plan.b1||"-")}${p.plan.b2?` · 2차 ${esc(p.plan.b2)}`:""} · 손절 ${esc(p.plan.stop||"-")}${p.plan.tp?` · 익절 ${esc(p.plan.tp)}`:""}</div>`:""}
+        </button></div>`;}).join(""):`<div class="empty">아직 없어요. + 종목으로 오늘 볼 종목을 넣어 보세요.</div>`}
+    <div class="row" style="gap:6px;flex-wrap:wrap">${closed?`<button class="ghost small" data-act="pkClosed">패스·정리한 종목 ${closed}개</button>`:""}${A.length?`<button class="ghost small" data-act="pkCsv">종목 엑셀로</button>`:""}</div></section>`;}
+function pkDayView(ds){const L=pkArr().filter(p=>(p.today||{})[ds]);if(!L.length)return "";
+  return `<section class="panel stack" style="gap:6px;border-left:4px solid var(--accent)"><h3>🎯 이날 본 종목</h3>${L.map(p=>{const {t}=pkScore(p);const [vd]=pkVerdict(p);return `<button data-act="pkEdit" data-id="${p.id}" style="text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:7px 0"><div class="row" style="justify-content:space-between"><b>${esc(p.name)}</b><span class="mono small">${fmtN(t)}점 · ${vd}</span></div>${p.plan&&(p.plan.b1||p.plan.stop)?`<div class="small">1차 ${esc(p.plan.b1||"-")}${p.plan.b2?` · 2차 ${esc(p.plan.b2)}`:""} · 손절 ${esc(p.plan.stop||"-")}${p.plan.tp?` · 익절 ${esc(p.plan.tp)}`:""}</div>`:""}${p.why?`<div class="small muted">${esc(p.why.split("\n")[0]).slice(0,60)}</div>`:""}</button>`;}).join("")}</section>`;}
+function pkClosedSheet(){const D=pkArr().filter(p=>p.st==="패스"||p.st==="정리");sheet(`<div class="stack"><h2>패스·정리한 종목</h2>${D.map(p=>{const {t}=pkScore(p);return `<button class="lrow" data-act="pkEdit" data-id="${p.id}" style="text-align:left;width:100%;background:none;border:0;border-top:1px solid var(--line);padding:9px 0"><b style="flex:1">${esc(p.name)}</b><span class="chip">${esc(p.st)}</span><span class="mono small">${fmtN(t)}점</span></button>`;}).join("")}<div class="row" style="justify-content:flex-end"><button class="ghost" id="pkClose">닫기</button></div></div>`);document.getElementById("pkClose").onclick=closeSheet;}
+function pkMd(p){const sc=p.score||{};const {t,zero}=pkScore(p);
+  return [`### [[${p.name}]] 점수`,"| 항목 | 점수 | 근거 |","|---|---|---|",...SC_ITEMS.map(([k,lab,mx])=>`| ${lab} (${mx}) | ${sc[k]&&sc[k].v!=null&&sc[k].v!==""?fmtN(Number(sc[k].v)):""} | ${String((sc[k]&&sc[k].r)||"").replace(/\n/g," ")} |`),`| **합계** | ${fmtN(t)} | ${zero?"0점 있음 → 패스":t>=90?"90↑ 매수":"89↓ 패스"} |`,
+    (p.mats||[]).length?"\n#### 상승 재료\n"+p.mats.map(m=>`- ${m.t} (${m.st})${(m.log||[]).map(l=>`\n  - ${l.d}: ${l.t}`).join("")}`).join("\n"):"",
+    p.plan?`\n#### 매수·손절 계획\n- 1차: ${p.plan.b1||""}\n- 2차: ${p.plan.b2||""}\n- 손절: ${p.plan.stop||""}\n- 익절: ${p.plan.tp||""}`:""].filter(Boolean).join("\n");}
+async function pkExport(){const A=pkArr();if(!A.length){toast("종목이 아직 없어요");return;}
+  const q=v=>{v=String(v==null?"":v).replace(/\r/g,"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+  const hd=["종목","상태","합계","판정",...SC_ITEMS.flatMap(([,lab,mx])=>[`${lab}(${mx})`,`${lab} 근거`]),"오늘 볼 이유","상승 재료","1차","2차","손절","익절","본 날짜","진행 기록"];
+  const rows=A.map(p=>{const sc=p.score||{};const {t}=pkScore(p);return [p.name,p.st,fmtN(t),pkVerdict(p)[0],...SC_ITEMS.flatMap(([k])=>[sc[k]&&sc[k].v!=null?sc[k].v:"",(sc[k]&&sc[k].r)||""]),p.why,(p.mats||[]).map(m=>`${m.t}(${m.st})`).join(" / "),...["b1","b2","stop","tp"].map(k=>(p.plan||{})[k]),Object.keys(p.today||{}).sort().join(" "),(p.log||[]).map(l=>`${l.d} ${l.t}`).join(" / ")].map(q).join(",");});
+  const csv="﻿"+[hd.map(q).join(","),...rows].join("\r\n");const name=`종목선정_${todayStr()}.csv`;
+  try{const f=new File([csv],name,{type:"text/csv"});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==="AbortError")return;}
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);toast(`${A.length}개 종목을 내보냈어요`);}
+function pkSheet(p){const isNew=!p;const ds=trDate;
+  const w=JSON.parse(JSON.stringify(p||{name:"",st:"관찰",why:"",plan:{},score:{},rules:{},mats:[],log:[],today:{[ds]:true}}));w.plan=w.plan||{};w.score=w.score||{};w.rules=w.rules||{};w.mats=w.mats||[];w.log=w.log||[];w.today=w.today||{};
+  const lock=w.buyScore||null;
+  const draw=()=>{const {t,zero,miss}=pkScore(w);const [vd,vc]=pkVerdict(w);
+    sheet(`<form class="stack" id="pkForm"><h2>${isNew?"종목 추가":esc(w.name)}</h2>
+    <label class="field"><span class="label">종목명</span><input id="pkName" required value="${esc(w.name)}" placeholder="예: 이수페타시스"></label>
+    <div class="field"><span class="label">상태</span><div class="row" style="gap:6px;flex-wrap:wrap">${PK_ST.map(v=>`<button type="button" class="small ${w.st===v?"primary":"ghost"}" data-pst="${v}">${v}</button>`).join("")}</div></div>
+    <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pkToday" style="width:auto;margin:0" ${w.today[ds]?"checked":""}> <span>${ds.slice(5).replace("-","/")} 오늘 볼 종목 ★</span></label>
+    <label class="field"><span class="label">오늘 볼 이유</span><textarea id="pkWhy" rows="2" placeholder="예: 기준봉 후 0.382 눌림, 거래대금 다시 붙음">${esc(w.why||"")}</textarea></label>
+    <div class="field"><span class="label">상승 재료 <span class="note">(진행에 따라 계속 추가돼요)</span></span>
+      <div class="stack" style="gap:8px">${w.mats.map((m,i)=>`<div class="bnote" style="border-style:solid;white-space:normal"><div class="row" style="gap:6px"><input data-mt="${i}" value="${esc(m.t)}" style="flex:1" placeholder="재료"><button type="button" class="ghost small danger" data-mdel="${i}" aria-label="재료 삭제">✕</button></div>
+        <div class="row" style="gap:4px;flex-wrap:wrap;margin-top:6px">${MAT_ST.map(v=>`<button type="button" class="small ${m.st===v?"primary":"ghost"}" data-mst="${i}" data-v="${v}">${v}</button>`).join("")}</div>
+        ${(m.log||[]).map(l=>`<div class="small" style="margin-top:4px"><span class="muted">${l.d.slice(5).replace("-","/")}</span> ${esc(l.t)}</div>`).join("")}
+        <input data-mlog="${i}" placeholder="진행 상황 추가 (예: 공급 계약 공시)" style="margin-top:6px;width:100%"></div>`).join("")}
+        <div class="row" style="gap:6px"><input id="pkMatNew" placeholder="새 재료 (예: 엔비디아 기판 공급)" style="flex:1"><button type="button" class="small ghost" id="pkMatAdd">+ 재료</button></div></div></div>
+    <div class="field"><span class="label">매수·손절 계획</span><div class="row" style="gap:6px;flex-wrap:wrap">${[["b1","1차 매수"],["b2","2차 매수"],["stop","손절"],["tp","익절"]].map(([k,l])=>`<label style="flex:1 1 45%"><span class="small muted">${l}</span><input data-pl="${k}" value="${esc(w.plan[k]||"")}" style="width:100%" placeholder="${k==="tp"?"예: 평단 +4%":k==="stop"?"예: 0.618 이탈":"가격 또는 자리"}"></label>`).join("")}</div></div>
+    <div class="field"><span class="label">거차재시 유실기 점수 <span class="mono" style="color:var(--${vc==="muted"?"muted":vc})">${fmtN(t)} / 100 · ${vd}</span></span>
+      ${lock?`<p class="note" style="margin:0">매수 후에는 점수를 올릴 수 없어요 (매수 때 ${fmtN(pkScore({score:lock}).t)}점).</p>`:`<p class="note" style="margin:0">만점 / 절반 / 0점 중 하나. 애매하면 낮은 쪽. 0점이 하나라도 있으면 매수하지 않아요.</p>`}
+      <div class="stack" style="gap:8px">${SC_ITEMS.map(([k,lab,mx,full,half,zero0])=>{const cur=w.score[k]||{};const cap=lock&&lock[k]&&lock[k].v!=null?Number(lock[k].v):null;
+        return `<div style="border-top:1px solid var(--line);padding-top:6px"><div class="row" style="justify-content:space-between;gap:6px"><b>${lab} <span class="small muted">(${mx})</span></b><span class="row" style="gap:4px">${[[mx,"만점"],[mx/2,"절반"],[0,"0점"]].map(([v,l])=>`<button type="button" class="small ${cur.v!=null&&cur.v!==""&&Number(cur.v)===v?"primary":"ghost"}" data-sk="${k}" data-v="${v}" ${cap!=null&&v>cap?"disabled":""} title="${esc(v===mx?full:v===0?zero0:half)}">${l}${v&&v!==mx?"":""}</button>`).join("")}</span></div>
+          <div class="small muted" style="margin:2px 0 4px">${cur.v!=null&&cur.v!==""?esc(Number(cur.v)===mx?full:Number(cur.v)===0?zero0:half):esc("만점: "+full)}</div>
+          <input data-sr="${k}" value="${esc(cur.r||"")}" placeholder="근거" style="width:100%"></div>`;}).join("")}</div></div>
+    <div class="field"><span class="label">매매 원칙 체크 <span class="note">(점수와 별개로 모두 통과)</span></span><div class="row" style="gap:10px;flex-wrap:wrap">${PK_RULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:4px"><input type="checkbox" data-rl="${k}" style="width:auto;margin:0" ${w.rules[k]?"checked":""}> ${l}</label>`).join("")}</div></div>
+    <label class="field"><span class="label">오늘 변화 <span class="note">(날짜와 함께 쌓여요)</span></span><textarea id="pkLog" rows="2" placeholder="예: 2차 매수 체결, 재료 기사 추가"></textarea></label>
+    ${w.log.length?`<div class="stack" style="gap:6px"><span class="label">지난 기록</span>${w.log.slice().reverse().map(l=>`<div class="bnote"><span class="label">${l.d.slice(5).replace("-","/")}</span><div>${esc(l.t)}</div></div>`).join("")}</div>`:""}
+    <div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:6px">${isNew?"<span></span>":`<button type="button" class="danger ghost" id="pkDel">삭제</button>`}<div class="row" style="gap:6px"><button type="button" class="ghost small" id="pkMd">점수표 복사</button><button type="button" class="ghost" id="pkCancel">닫기</button><button class="primary" id="pkSave">저장</button></div></div></form>`,!(isNew&&!w._drawn));w._drawn=1;
+    const $=id=>document.getElementById(id);const grab=()=>{w.name=$("pkName").value.trim();w.why=$("pkWhy").value;w.today[ds]=$("pkToday").checked;if(!w.today[ds])delete w.today[ds];
+      document.querySelectorAll("[data-pl]").forEach(x=>w.plan[x.dataset.pl]=x.value.trim());
+      document.querySelectorAll("[data-sr]").forEach(x=>{w.score[x.dataset.sr]=Object.assign({},w.score[x.dataset.sr],{r:x.value});});
+      document.querySelectorAll("[data-rl]").forEach(x=>w.rules[x.dataset.rl]=x.checked);
+      document.querySelectorAll("[data-mt]").forEach(x=>{w.mats[+x.dataset.mt].t=x.value;});
+      document.querySelectorAll("[data-mlog]").forEach(x=>{const v=x.value.trim();if(v){const m=w.mats[+x.dataset.mlog];m.log=m.log||[];m.log.push({d:todayStr(),t:v});x.value="";}});
+      w._pending=$("pkLog").value;};
+    const redraw=()=>{grab();const pl=w._pending;const sy=document.querySelector(".sheet")?.scrollTop||0;draw();$("pkLog").value=pl||"";const sh=document.querySelector(".sheet");if(sh)sh.scrollTop=sy;};
+    document.querySelectorAll("[data-pst]").forEach(b=>b.onclick=()=>{w.st=b.dataset.pst;redraw();});
+    document.querySelectorAll("[data-sk]").forEach(b=>b.onclick=()=>{const k=b.dataset.sk;const v=Number(b.dataset.v);w.score[k]=Object.assign({},w.score[k],{v:(w.score[k]&&Number(w.score[k].v)===v&&w.score[k].v!=="")?"":v});redraw();});
+    document.querySelectorAll("[data-mst]").forEach(b=>b.onclick=()=>{const m=w.mats[+b.dataset.mst];if(m.st!==b.dataset.v){m.st=b.dataset.v;m.log=m.log||[];m.log.push({d:todayStr(),t:"→ "+m.st});}redraw();});
+    document.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{w.mats.splice(+b.dataset.mdel,1);redraw();});
+    $("pkMatAdd").onclick=()=>{const v=$("pkMatNew").value.trim();if(!v)return;grab();w.mats.push({id:uidGen(),t:v,st:"진행 중",log:[{d:todayStr(),t:"추가"}]});const pl=w._pending;draw();$("pkLog").value=pl||"";};
+    $("pkCancel").onclick=closeSheet;
+    $("pkMd").onclick=()=>{grab();(navigator.clipboard?navigator.clipboard.writeText(pkMd(w)):Promise.reject()).then(()=>toast("점수표를 복사했어요 · 옵시디언에 붙여넣으세요")).catch(()=>toast("복사가 안 됐어요"));};
+    const del=$("pkDel");if(del)del.onclick=()=>{if(!del.dataset.sure){del.dataset.sure=1;del.textContent="한 번 더 누르면 삭제";return;}S.picks=pkArr().filter(x=>x.id!==p.id);save();closeSheet();render();};
+    $("pkForm").onsubmit=ev=>{ev.preventDefault();grab();if(!w.name)return;const lg=(w._pending||"").trim();delete w._pending;delete w._drawn;
+      if(lg)w.log.push({d:todayStr(),t:lg});
+      if(isNew)w.log.push({d:todayStr(),t:"추가 · "+fmtN(pkScore(w).t)+"점"});
+      if(w.st==="매수"&&!w.buyScore){w.buyScore=JSON.parse(JSON.stringify(w.score));w.log.push({d:todayStr(),t:`매수 · ${fmtN(pkScore(w).t)}점으로 고정`});}
+      if(p&&p.st!==w.st&&w.st!=="매수")w.log.push({d:todayStr(),t:"상태 → "+w.st});
+      w.upd=Date.now();S.picks=pkArr();if(isNew){w.id=uidGen();S.picks.push(w);}else{const i=S.picks.findIndex(x=>x.id===p.id);S.picks[i]=w;}
+      save();closeSheet();render();const [vd]=pkVerdict(w);toast(`저장했어요 · ${fmtN(pkScore(w).t)}점 ${vd}`);};};
+  draw();}
+
 function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate);const r=trRec(trDate);
   const mode=trMode||(isT&&new Date().getHours()*60+new Date().getMinutes()<15*60+30&&!trHas(r.rv)?"sc":"rv");
   const fld=(sec,[k,lab,ph])=>`<label class="field"><span class="label">${lab}</span><textarea data-tr="${sec}.${k}" rows="3" placeholder="${esc(ph)}">${esc((r[sec]||{})[k]||"")}</textarea></label>`;
-  const scView=trHas(r.sc)?`<section class="panel stack" style="gap:6px;border-left:4px solid var(--day)"><h3>📋 이날 시나리오</h3>${TR_SC.filter(([k])=>String(r.sc[k]||"").trim()).map(([k,lab])=>`<div><div class="label">${lab}</div><div style="white-space:pre-wrap">${esc(r.sc[k])}</div></div>`).join("")}</section>`
+  const scView=trHas(r.sc)?`<section class="panel stack" style="gap:6px;border-left:4px solid var(--day)"><h3>📋 이날 시나리오</h3>${[...TR_SC,["pick","오늘 볼 종목 (예전 칸)"],["plan","매수·손절 계획 (예전 칸)"]].filter(([k])=>String(r.sc[k]||"").trim()).map(([k,lab])=>`<div><div class="label">${lab}</div><div style="white-space:pre-wrap">${esc(r.sc[k])}</div></div>`).join("")}</section>`
     :`<section class="panel"><div class="empty">이날 써 둔 시나리오가 없어요.</div></section>`;
   const fol=r.rv.follow||"";
   return `<div class="row" style="justify-content:space-between;margin-bottom:10px">
@@ -1903,8 +2009,8 @@ function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate)
     <div style="text-align:center"><h2>${d.getMonth()+1}/${d.getDate()} ${WD[d.getDay()]}</h2>${isT?"":`<button class="ghost small" data-act="trNav" data-v="0">오늘로</button>`}</div>
     <button aria-label="다음날" data-act="trNav" data-v="1">›</button></div>
   <div class="toggle" style="margin-bottom:12px"><button data-act="trMode" data-v="sc" aria-pressed="${mode==="sc"}">아침 시나리오 ${trHas(r.sc)?"✓":""}</button><button data-act="trMode" data-v="rv" aria-pressed="${mode==="rv"}">장 마감 복기 ${trHas(r.rv)?"✓":""}</button></div>
-  ${mode==="sc"?bkBoard("cat")+uncBoard()+`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${TR_SC.map(f=>fld("sc",f)).join("")}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
-  :`${scView}${bkBoard("cat")}${uncBoard()}<section class="panel stack" style="gap:10px"><h3>장 마감 복기</h3>
+  ${mode==="sc"?pkBoard(trDate)+bkBoard("cat")+uncBoard()+`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${TR_SC.map(f=>fld("sc",f)).join("")}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
+  :`${scView}${pkDayView(trDate)}${pkBoard(trDate)}${bkBoard("cat")}${uncBoard()}<section class="panel stack" style="gap:10px"><h3>장 마감 복기</h3>
     <div class="field"><span class="label">시나리오대로 했나요?</span><div class="row" style="gap:6px;flex-wrap:wrap">${["그대로 했어요","일부만","지키지 못했어요","매매 안 함"].map(v=>`<button class="small ${fol===v?"primary":"ghost"}" data-act="trFollow" data-v="${v}">${v}</button>`).join("")}</div></div>
     ${TR_RV.map(f=>fld("rv",f)).join("")}<div class="row" style="justify-content:space-between"><span class="note" id="trState">쓰는 대로 저장돼요</span><span class="row" style="gap:4px"><button class="ghost small" data-act="trCopy">옵시디언용 복사</button><button class="ghost small" data-act="trCsv">엑셀로 내보내기</button></span></div></section>`}`;}
 async function trExport(){const T=S.trade||{};const days=Object.keys(T).filter(d=>trHas(T[d].sc)||trHas(T[d].rv)).sort();
@@ -2096,13 +2202,13 @@ function updateFib(){
 }
 
 /* ---------- sheets ---------- */
-function sheet(html){
+function sheet(html,nofocus){
   closeSheet();
   const b=document.createElement("div");b.className="sheet-back";b.id="sheet";
   b.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;
   b.addEventListener("click",e=>{if(e.target===b)closeSheet();});
   document.body.appendChild(b);
-  const f=b.querySelector("input,textarea");if(f)setTimeout(()=>f.focus(),50);
+  const f=b.querySelector("input,textarea");if(f&&!nofocus)setTimeout(()=>f.focus(),50);
 }
 function closeSheet(){const s=document.getElementById("sheet");if(s)s.remove();}
 function toast(msg){const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),1800);}
@@ -2572,9 +2678,14 @@ document.addEventListener("click",e=>{
   else if(a==="trFollow"){S.trade=S.trade||{};const r=trRec(trDate);r.rv=Object.assign({},r.rv,{follow:r.rv.follow===el.dataset.v?"":el.dataset.v});S.trade[trDate]=r;save();render();}
   else if(a==="trCsv"){trExport();}
   else if(a==="bkNew"){bkSheet(el.dataset.k,null);}
+  else if(a==="pkNew"){pkSheet(null);}
+  else if(a==="pkEdit"){closeSheet();pkSheet(pkArr().find(x=>x.id===el.dataset.id));}
+  else if(a==="pkStar"){const p=pkArr().find(x=>x.id===el.dataset.id);if(p){p.today=p.today||{};if(p.today[trDate])delete p.today[trDate];else p.today[trDate]=true;save();render();}}
+  else if(a==="pkClosed"){pkClosedSheet();}
+  else if(a==="pkCsv"){pkExport();}
   else if(a==="bkEdit"){const k=el.dataset.k;bkSheet(k,bkArr(k).find(x=>x.id===el.dataset.id));}
   else if(a==="bkDone"){bkSheet(el.dataset.k,null,true);}
-  else if(a==="uncSeed"){if((S.unc||[]).length)return;const d=todayStr();S.unc=[["미-이란 전쟁 종식 과정","이스라엘, 중국, 러시아 제스처"],["러-우크라이나 전쟁 종식 과정","미국의 제스처"],["미국 10년물 국채금리 5%","방향성"],["젠슨 황 불륜 결과","상·하원의 발언"]].map(([title,note])=>({id:uidGen(),title,note,str:3,st:"시장 미반영",plan:"",log:[{d,t:"추가",str:3,st:"시장 미반영"}]}));save();render();toast("4가지를 넣었어요 · 눌러서 세기와 반영 정도를 맞춰 주세요");}
+  else if(a==="uncSeed"){if((S.unc||[]).length)return;const d=todayStr();S.unc=[["미-이란 전쟁 종식 과정","",["이스라엘 제스처","중국 제스처","러시아 제스처"]],["러-우크라이나 전쟁 종식 과정","",["미국의 제스처"]],["미국 10년물 국채금리 5%","",["방향성"]],["젠슨 황 불륜 결과","",["상·하원의 발언"]]].map(([title,note,sb])=>({id:uidGen(),title,note,str:3,st:"시장 미반영",plan:"",subs:sb.map(t=>({id:uidGen(),t,st:"시장 미반영",log:[{d,t:"추가"}]})),log:[{d,t:"추가",str:3,st:"시장 미반영"}]}));save();render();toast("4가지를 넣었어요 · 눌러서 세기와 반영 정도를 맞춰 주세요");}
 
   else if(a==="trCopy"){const r=trRec(trDate);const L=[`# ${trDate} 매매`,"## 시나리오",...TR_SC.map(([k,lab])=>`- **${lab}**: ${String(r.sc[k]||"").trim()}`),"## 복기",`- **시나리오대로**: ${r.rv.follow||""}`,...TR_RV.map(([k,lab])=>`- **${lab}**: ${String(r.rv[k]||"").trim()}`)].join("\n");
     (navigator.clipboard?navigator.clipboard.writeText(L):Promise.reject()).then(()=>toast("복사했어요 · 옵시디언에 붙여넣으세요")).catch(()=>toast("복사가 안 됐어요"));}
