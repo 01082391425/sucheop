@@ -1846,7 +1846,7 @@ function head(title,sub,extra){
 
 function vStockWrap(){return `<style>.stog button{white-space:nowrap;font-size:13px;padding-left:4px;padding-right:4px}</style><div class="toggle stog" style="margin-bottom:14px"><button data-act="stockSub" data-v="sched" aria-pressed="${stockSub==="sched"}">일정</button><button data-act="stockSub" data-v="trade" aria-pressed="${stockSub==="trade"}">매매 노트</button><button data-act="stockSub" data-v="fib" aria-pressed="${stockSub==="fib"}">피보나치</button></div>`+(stockSub==="fib"?vFib():stockSub==="trade"?vTrade():vStock());}
 let trDate=todayStr(), trMode=null, trT=null;
-const TR_SC=[["mkt","미국장·시황","밤사이 미국장, 지수·선물, 환율, 주요 뉴스"],["unc","불확실성 오늘 체크","보드에서 세기·반영이 달라진 것 · 오늘 이걸로 빠지면 살지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
+const TR_SC=[["mkt","미국장·시황","밤사이 미국장 흐름 · 눈에 띈 섹터"],["idx","지수","나스닥 · S&P · SOX",1],["fut","선물","코스피 야간 · 나스닥 선물",1],["fx","환율","달러/원",1],["oil","유가","WTI",1],["news","주요 뉴스","한두 줄",2],["unc","불확실성 오늘 체크","보드에서 세기·반영이 달라진 것 · 오늘 이걸로 빠지면 살지"],["rule","오늘 지킬 원칙","예: 박스권 안에서는 사지 않는다"]];
 const TR_RV=[["did","오늘 한 매매","종목 · 매수/매도가 · 손익"],["why","시나리오와 달랐던 점","계획에 없던 매매, 놓친 자리"],["good","잘한 점",""],["bad","아쉬운 점",""],["next","다음에 바꿀 것",""]];
 function trRec(ds){S.trade=S.trade||{};const o=S.trade[ds]||{};o.sc=o.sc||{};o.rv=o.rv||{};return o;}
 function trHas(o){return o&&Object.values(o).some(v=>String(v||"").trim());}
@@ -1917,6 +1917,12 @@ const SC_ITEMS=[["g","거래대금",15,"기준봉 1,000억↑ + 눌림 반등 �
 const PK_ST=["관찰","매수","패스","정리"], MAT_ST=["진행 중","일부 반영","반영 끝","소멸"];
 const PK_RULES=[["base","기준봉 확인"],["stat","통계 자리"],["stop","손절가 정함"],["cash","현금 여유"]];
 function pkArr(){return S.picks||[];}
+const BP_DEF=["지지/저항 · 라운드 피규어","단기 과대낙폭 · 지수 급투매","첫 음봉"];
+function bpList(){return (S.bp&&S.bp.length)?S.bp:BP_DEF;}
+function bpStrip(){return `<section class="panel" style="padding:10px 12px;border-left:4px solid var(--day)"><div class="row" style="justify-content:space-between;gap:6px"><b>📌 매수 포인트 <span class="small muted" style="font-weight:400">재료가 살아있다는 가정</span></b><button class="ghost small" data-act="bpEdit">고치기</button></div><ol style="margin:6px 0 0 20px;padding:0">${bpList().map(x=>`<li>${esc(x)}</li>`).join("")}</ol></section>`;}
+function bpSheet(){sheet(`<form class="stack" id="bpForm"><h2>매수 포인트</h2><p class="note" style="margin:0">한 줄에 하나씩. 매매 노트 맨 위와 종목마다 계속 보여요.</p><textarea id="bpText" rows="6">${esc(bpList().join("\n"))}</textarea><div class="row" style="justify-content:space-between"><button type="button" class="ghost small" id="bpReset">처음 문구로</button><div class="row"><button type="button" class="ghost" id="bpCancel">닫기</button><button class="primary">저장</button></div></div></form>`);
+  document.getElementById("bpCancel").onclick=closeSheet;document.getElementById("bpReset").onclick=()=>{document.getElementById("bpText").value=BP_DEF.join("\n");};
+  document.getElementById("bpForm").onsubmit=e=>{e.preventDefault();S.bp=document.getElementById("bpText").value.split("\n").map(x=>x.trim()).filter(Boolean);save();closeSheet();render();toast("저장했어요");};}
 function pkScore(p){const sc=p.score||{};let t=0,zero=false,miss=0;SC_ITEMS.forEach(([k])=>{const v=sc[k]&&sc[k].v;if(v==null||v==="")miss++;else{t+=Number(v);if(Number(v)===0)zero=true;}});return {t,zero,miss};}
 function pkVerdict(p){const {t,zero,miss}=pkScore(p);if(miss===SC_ITEMS.length)return ["점수 전","muted"];if(miss)return [`${miss}개 남음`,"muted"];if(zero)return ["0점 있음 · 패스","down"];return t>=90?["매수 가능","up"]:["89↓ 패스","down"];}
 const fmtN=n=>Number.isInteger(n)?String(n):n.toFixed(1);
@@ -1929,7 +1935,7 @@ function pkBoard(ds){const A=pkArr();const open=A.filter(p=>p.st==="관찰"||p.s
         <button class="ghost small" data-act="pkStar" data-id="${p.id}" aria-label="오늘 볼 종목" style="padding:2px 6px;color:${on?"var(--up)":"var(--muted)"}">${on?"★":"☆"}</button>
         <button data-act="pkEdit" data-id="${p.id}" style="flex:1;min-width:0;text-align:left;background:none;border:0;padding:0">
           <div class="row" style="justify-content:space-between;gap:6px"><b>${esc(p.name)}</b><span class="mono small" style="color:var(--${vc==="muted"?"muted":vc})">${fmtN(t)}점 · ${vd}</span></div>
-          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(p.st)}</span>${mats.length?`<span class="small muted">재료 ${mats.length} · ${esc(mats[0].t).slice(0,28)}</span>`:""}</div>
+          <div class="row" style="gap:6px;flex-wrap:wrap;margin-top:2px"><span class="chip">${esc(p.st)}</span>${(p.bp||[]).map(x=>`<span class="chip" style="background:none;border:1px solid var(--line);color:var(--fg)">📌 ${esc(x)}</span>`).join("")}${mats.length?`<span class="small muted">재료 ${mats.length} · ${esc(mats[0].t).slice(0,28)}</span>`:""}</div>
           ${(p.plan&&(p.plan.b1||p.plan.stop))?`<div class="small" style="margin-top:2px">1차 ${esc(p.plan.b1||"-")}${p.plan.b2?` · 2차 ${esc(p.plan.b2)}`:""} · 손절 ${esc(p.plan.stop||"-")}${p.plan.tp?` · 익절 ${esc(p.plan.tp)}`:""}</div>`:""}
         </button></div>`;}).join(""):`<div class="empty">아직 없어요. + 종목으로 오늘 볼 종목을 넣어 보세요.</div>`}
     <div class="row" style="gap:6px;flex-wrap:wrap">${closed?`<button class="ghost small" data-act="pkClosed">패스·정리한 종목 ${closed}개</button>`:""}${A.length?`<button class="ghost small" data-act="pkCsv">종목 엑셀로</button>`:""}</div></section>`;}
@@ -1939,11 +1945,12 @@ function pkClosedSheet(){const D=pkArr().filter(p=>p.st==="패스"||p.st==="정�
 function pkMd(p){const sc=p.score||{};const {t,zero}=pkScore(p);
   return [`### [[${p.name}]] 점수`,"| 항목 | 점수 | 근거 |","|---|---|---|",...SC_ITEMS.map(([k,lab,mx])=>`| ${lab} (${mx}) | ${sc[k]&&sc[k].v!=null&&sc[k].v!==""?fmtN(Number(sc[k].v)):""} | ${String((sc[k]&&sc[k].r)||"").replace(/\n/g," ")} |`),`| **합계** | ${fmtN(t)} | ${zero?"0점 있음 → 패스":t>=90?"90↑ 매수":"89↓ 패스"} |`,
     (p.mats||[]).length?"\n#### 상승 재료\n"+p.mats.map(m=>`- ${m.t} (${m.st})${(m.log||[]).map(l=>`\n  - ${l.d}: ${l.t}`).join("")}`).join("\n"):"",
+    (p.bp||[]).length?`\n#### 매수 포인트\n${p.bp.map(x=>"- "+x).join("\n")}`:"",
     p.plan?`\n#### 매수·손절 계획\n- 1차: ${p.plan.b1||""}\n- 2차: ${p.plan.b2||""}\n- 손절: ${p.plan.stop||""}\n- 익절: ${p.plan.tp||""}`:""].filter(Boolean).join("\n");}
 async function pkExport(){const A=pkArr();if(!A.length){toast("종목이 아직 없어요");return;}
   const q=v=>{v=String(v==null?"":v).replace(/\r/g,"");return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
-  const hd=["종목","상태","합계","판정",...SC_ITEMS.flatMap(([,lab,mx])=>[`${lab}(${mx})`,`${lab} 근거`]),"오늘 볼 이유","상승 재료","1차","2차","손절","익절","본 날짜","진행 기록"];
-  const rows=A.map(p=>{const sc=p.score||{};const {t}=pkScore(p);return [p.name,p.st,fmtN(t),pkVerdict(p)[0],...SC_ITEMS.flatMap(([k])=>[sc[k]&&sc[k].v!=null?sc[k].v:"",(sc[k]&&sc[k].r)||""]),p.why,(p.mats||[]).map(m=>`${m.t}(${m.st})`).join(" / "),...["b1","b2","stop","tp"].map(k=>(p.plan||{})[k]),Object.keys(p.today||{}).sort().join(" "),(p.log||[]).map(l=>`${l.d} ${l.t}`).join(" / ")].map(q).join(",");});
+  const hd=["종목","상태","합계","판정",...SC_ITEMS.flatMap(([,lab,mx])=>[`${lab}(${mx})`,`${lab} 근거`]),"오늘 볼 이유","매수 포인트","상승 재료","1차","2차","손절","익절","본 날짜","진행 기록"];
+  const rows=A.map(p=>{const sc=p.score||{};const {t}=pkScore(p);return [p.name,p.st,fmtN(t),pkVerdict(p)[0],...SC_ITEMS.flatMap(([k])=>[sc[k]&&sc[k].v!=null?sc[k].v:"",(sc[k]&&sc[k].r)||""]),p.why,(p.bp||[]).join(" / "),(p.mats||[]).map(m=>`${m.t}(${m.st})`).join(" / "),...["b1","b2","stop","tp"].map(k=>(p.plan||{})[k]),Object.keys(p.today||{}).sort().join(" "),(p.log||[]).map(l=>`${l.d} ${l.t}`).join(" / ")].map(q).join(",");});
   const csv="﻿"+[hd.map(q).join(","),...rows].join("\r\n");const name=`종목선정_${todayStr()}.csv`;
   try{const f=new File([csv],name,{type:"text/csv"});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return;}}catch(e){if(e&&e.name==="AbortError")return;}
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);toast(`${A.length}개 종목을 내보냈어요`);}
@@ -1956,6 +1963,7 @@ function pkSheet(p){const isNew=!p;const ds=trDate;
     <div class="field"><span class="label">상태</span><div class="row" style="gap:6px;flex-wrap:wrap">${PK_ST.map(v=>`<button type="button" class="small ${w.st===v?"primary":"ghost"}" data-pst="${v}">${v}</button>`).join("")}</div></div>
     <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="pkToday" style="width:auto;margin:0" ${w.today[ds]?"checked":""}> <span>${ds.slice(5).replace("-","/")} 오늘 볼 종목 ★</span></label>
     <label class="field"><span class="label">오늘 볼 이유</span><textarea id="pkWhy" rows="2" placeholder="예: 기준봉 후 0.382 눌림, 거래대금 다시 붙음">${esc(w.why||"")}</textarea></label>
+    <div class="field"><span class="label">어떤 매수 포인트인가 <span class="note">(재료가 살아있을 때만)</span></span><div class="row" style="gap:6px;flex-wrap:wrap">${bpList().map(v=>`<button type="button" class="small ${(w.bp||[]).includes(v)?"primary":"ghost"}" data-bp="${esc(v)}">${esc(v)}</button>`).join("")}</div>${(w.bp||[]).length?"":`<span class="small muted">해당하는 자리가 없으면 아직 살 자리가 아니에요.</span>`}</div>
     <div class="field"><span class="label">상승 재료 <span class="note">(진행에 따라 계속 추가돼요)</span></span>
       <div class="stack" style="gap:8px">${w.mats.map((m,i)=>`<div class="bnote" style="border-style:solid;white-space:normal"><div class="row" style="gap:6px"><input data-mt="${i}" value="${esc(m.t)}" style="flex:1" placeholder="재료"><button type="button" class="ghost small danger" data-mdel="${i}" aria-label="재료 삭제">✕</button></div>
         <div class="row" style="gap:4px;flex-wrap:wrap;margin-top:6px">${MAT_ST.map(v=>`<button type="button" class="small ${m.st===v?"primary":"ghost"}" data-mst="${i}" data-v="${v}">${v}</button>`).join("")}</div>
@@ -1982,6 +1990,7 @@ function pkSheet(p){const isNew=!p;const ds=trDate;
       w._pending=$("pkLog").value;};
     const redraw=()=>{grab();const pl=w._pending;const sy=document.querySelector(".sheet")?.scrollTop||0;draw();$("pkLog").value=pl||"";const sh=document.querySelector(".sheet");if(sh)sh.scrollTop=sy;};
     document.querySelectorAll("[data-pst]").forEach(b=>b.onclick=()=>{w.st=b.dataset.pst;redraw();});
+    document.querySelectorAll("[data-bp]").forEach(b=>b.onclick=()=>{const v=b.dataset.bp;w.bp=w.bp||[];w.bp=w.bp.includes(v)?w.bp.filter(x=>x!==v):[...w.bp,v];redraw();});
     document.querySelectorAll("[data-sk]").forEach(b=>b.onclick=()=>{const k=b.dataset.sk;const v=Number(b.dataset.v);w.score[k]=Object.assign({},w.score[k],{v:(w.score[k]&&Number(w.score[k].v)===v&&w.score[k].v!=="")?"":v});redraw();});
     document.querySelectorAll("[data-mst]").forEach(b=>b.onclick=()=>{const m=w.mats[+b.dataset.mst];if(m.st!==b.dataset.v){m.st=b.dataset.v;m.log=m.log||[];m.log.push({d:todayStr(),t:"→ "+m.st});}redraw();});
     document.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{w.mats.splice(+b.dataset.mdel,1);redraw();});
@@ -2000,8 +2009,10 @@ function pkSheet(p){const isNew=!p;const ds=trDate;
 
 function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate);const r=trRec(trDate);
   const mode=trMode||(isT&&new Date().getHours()*60+new Date().getMinutes()<15*60+30&&!trHas(r.rv)?"sc":"rv");
-  const fld=(sec,[k,lab,ph])=>`<label class="field"><span class="label">${lab}</span><textarea data-tr="${sec}.${k}" rows="3" placeholder="${esc(ph)}">${esc((r[sec]||{})[k]||"")}</textarea></label>`;
-  const scView=trHas(r.sc)?`<section class="panel stack" style="gap:6px;border-left:4px solid var(--day)"><h3>📋 이날 시나리오</h3>${[...TR_SC,["pick","오늘 볼 종목 (예전 칸)"],["plan","매수·손절 계획 (예전 칸)"]].filter(([k])=>String(r.sc[k]||"").trim()).map(([k,lab])=>`<div><div class="label">${lab}</div><div style="white-space:pre-wrap">${esc(r.sc[k])}</div></div>`).join("")}</section>`
+  const fld=(sec,[k,lab,ph,mini])=>mini===1?`<label style="flex:1 1 45%;min-width:0"><span class="small muted">${lab}</span><input data-tr="${sec}.${k}" placeholder="${esc(ph)}" value="${esc((r[sec]||{})[k]||"")}" style="width:100%"></label>`
+    :`<label class="field"${mini?' style="margin-top:-4px"':""}><span class="${mini?"small muted":"label"}">${lab}</span><textarea data-tr="${sec}.${k}" rows="${mini?2:3}" placeholder="${esc(ph)}">${esc((r[sec]||{})[k]||"")}</textarea></label>`;
+  const scFields=()=>{const m=TR_SC.filter(f=>f[3]===1);return TR_SC.map(f=>f[3]===1?(f===m[0]?`<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:-4px">${m.map(x=>fld("sc",x)).join("")}</div>`:""):fld("sc",f)).join("");};
+  const scView=trHas(r.sc)?`<section class="panel stack" style="gap:6px;border-left:4px solid var(--day)"><h3>📋 이날 시나리오</h3>${[...TR_SC,["pick","오늘 볼 종목 (예전 칸)"],["plan","매수·손절 계획 (예전 칸)"]].filter(([k])=>String(r.sc[k]||"").trim()).map(([k,lab,,mini])=>mini===1?`<div class="small"><span class="muted">${lab}</span> ${esc(r.sc[k])}</div>`:`<div><div class="label">${lab}</div><div style="white-space:pre-wrap">${esc(r.sc[k])}</div></div>`).join("")}</section>`
     :`<section class="panel"><div class="empty">이날 써 둔 시나리오가 없어요.</div></section>`;
   const fol=r.rv.follow||"";
   return `<div class="row" style="justify-content:space-between;margin-bottom:10px">
@@ -2009,7 +2020,8 @@ function vTrade(){const t=todayStr();const isT=trDate===t;const d=parseD(trDate)
     <div style="text-align:center"><h2>${d.getMonth()+1}/${d.getDate()} ${WD[d.getDay()]}</h2>${isT?"":`<button class="ghost small" data-act="trNav" data-v="0">오늘로</button>`}</div>
     <button aria-label="다음날" data-act="trNav" data-v="1">›</button></div>
   <div class="toggle" style="margin-bottom:12px"><button data-act="trMode" data-v="sc" aria-pressed="${mode==="sc"}">아침 시나리오 ${trHas(r.sc)?"✓":""}</button><button data-act="trMode" data-v="rv" aria-pressed="${mode==="rv"}">장 마감 복기 ${trHas(r.rv)?"✓":""}</button></div>
-  ${mode==="sc"?pkBoard(trDate)+bkBoard("cat")+uncBoard()+`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${TR_SC.map(f=>fld("sc",f)).join("")}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
+  ${bpStrip()}
+  ${mode==="sc"?pkBoard(trDate)+bkBoard("cat")+uncBoard()+`<section class="panel stack" style="gap:10px"><h3>아침 시나리오</h3><p class="note" style="margin:0">장 시작 전에 오늘 볼 것과 계획을 적어요. 복기할 때 맨 위에 그대로 떠요.</p>${scFields()}<div class="note" id="trState">쓰는 대로 저장돼요</div></section>`
   :`${scView}${pkDayView(trDate)}${pkBoard(trDate)}${bkBoard("cat")}${uncBoard()}<section class="panel stack" style="gap:10px"><h3>장 마감 복기</h3>
     <div class="field"><span class="label">시나리오대로 했나요?</span><div class="row" style="gap:6px;flex-wrap:wrap">${["그대로 했어요","일부만","지키지 못했어요","매매 안 함"].map(v=>`<button class="small ${fol===v?"primary":"ghost"}" data-act="trFollow" data-v="${v}">${v}</button>`).join("")}</div></div>
     ${TR_RV.map(f=>fld("rv",f)).join("")}<div class="row" style="justify-content:space-between"><span class="note" id="trState">쓰는 대로 저장돼요</span><span class="row" style="gap:4px"><button class="ghost small" data-act="trCopy">옵시디언용 복사</button><button class="ghost small" data-act="trCsv">엑셀로 내보내기</button></span></div></section>`}`;}
@@ -2679,6 +2691,7 @@ document.addEventListener("click",e=>{
   else if(a==="trCsv"){trExport();}
   else if(a==="bkNew"){bkSheet(el.dataset.k,null);}
   else if(a==="pkNew"){pkSheet(null);}
+  else if(a==="bpEdit"){bpSheet();}
   else if(a==="pkEdit"){closeSheet();pkSheet(pkArr().find(x=>x.id===el.dataset.id));}
   else if(a==="pkStar"){const p=pkArr().find(x=>x.id===el.dataset.id);if(p){p.today=p.today||{};if(p.today[trDate])delete p.today[trDate];else p.today[trDate]=true;save();render();}}
   else if(a==="pkClosed"){pkClosedSheet();}
